@@ -1,0 +1,74 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.30"
+# Monad is Pectra (Prague) compatible. network = "monad" makes tests and scripts use Monad gas
+# pricing, precompiles (including P256VERIFY at 0x0100) and size limits.
+evm_version = "prague"
+network = "monad"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "solady/=lib/solady/src/",
+    "forge-std/=lib/forge-std/src/",
+]
+fs_permissions = [
+    { access = "read", path = "./broadcast" },
+    { access = "read", path = "./test/fixtures" },
+    { access = "read-write", path = "./deployments" },
+]
+
+[profile.default.fuzz]
+runs = 1000
+
+[profile.default.invariant]
+runs = 256
+depth = 128
+fail_on_revert = false
+
+[profile.ci.fuzz]
+runs = 5000
+
+[profile.ci.invariant]
+runs = 512
+depth = 256
+
+[fmt]
+line_length = 110
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+quote_style = "double"
+number_underscore = "thousands"
+sort_imports = true
+
+[lint]
+severity = ["high", "med", "low"]
+# Test code casts fuzz inputs and moves the clock on purpose.
+ignore = ["test/**/*.sol", "script/**/*.sol"]
+exclude_lints = [
+    # Expiries, staleness and lifecycle windows are time-based by design.
+    "block-timestamp",
+    # Zero-initialized locals (loop counters, enum defaults) are intentional.
+    "uninitialized-local",
+    # Flags tuple returns such as `return (true, value)`.
+    "boolean-cst",
+    # Every state-changing entry point is nonReentrant and follows checks-effects-interactions.
+    # These rules cannot model ReentrancyGuard, so Slither, which does, covers reentrancy in CI.
+    "reentrancy-no-eth",
+    "reentrancy-events",
+]
+
+# Monadscan verification through the Etherscan V2 API (ETHERSCAN_API_KEY in .env); Sourcify needs no key.
+[etherscan]
+monad_testnet = { key = "${ETHERSCAN_API_KEY}", chain = 10143, url = "https://api.etherscan.io/v2/api?chainid=10143" }
+monad_mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 143, url = "https://api.etherscan.io/v2/api?chainid=143" }
+
+[rpc_endpoints]
+monad_testnet = "https://testnet-rpc.monad.xyz"
+monad_mainnet = "https://rpc.monad.xyz"

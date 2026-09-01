@@ -1,0 +1,11 @@
+out/
+cache/
+.env
+# Local chain broadcasts; Testnet and Mainnet broadcasts are kept for addresses and hashes.
+broadcast/*/31337/
+broadcast/**/dry-run/
+# Mainnet rehearsals run on a local Anvil fork that reports chain 143.
+broadcast/MainnetRehearsal.s.sol/
+
+# Local Anvil deployments are recreated by tests.
+deployments/31337.json
