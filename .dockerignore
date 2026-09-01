@@ -1,0 +1,31 @@
+# Build context of the service images, which build from the repository root
+# (docker build -f <service>/Dockerfile .). Each Dockerfile copies only what it needs; this keeps
+# local installs, build output and secrets out of the context.
+.git
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/.next*
+**/.envio
+**/.cre_build_tmp.js
+**/*.wasm
+**/*.log
+**/.DS_Store
+**/.mm-state.json*
+**/.*-state*.json
+**/.probe
+# Not in any service image.
+admin
+frontend
+landing-page
+# The oracle image reads contracts/deployments; nothing reads the rest of contracts/.
+contracts/*
+!contracts/deployments
+# Local notes and tools.
+notes
+compare
+tools
+scratch
+FLOWCHARTS.md

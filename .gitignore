@@ -1,0 +1,68 @@
+# Local tools (for example the README image generator); the images they write under
+# assets/readme/ are tracked.
+/tools/
+
+# Local working notes, scratch and one-off proof scripts
+notes/
+PRD.md
+mockup/
+images/
+compare/
+/FLOWCHARTS.md
+scratch/
+*.scratch.*
+**/scripts/prove-*.ts
+
+# Local assistant notes and context, deploy settings and hosting notes
+CLAUDE.md
+AGENTS.md
+BRIEF.md
+.claude/
+.agents/
+.gstack/
+skills-lock.json
+claude-design.md
+/docs/hosting.md
+/.railway/
+/.railwayignore
+.vercelignore
+
+# Dependencies
+node_modules/
+
+# Local build output, wherever it lands
+.next*/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+.vercel/
+
+# Test output and logs
+test-results/
+playwright-report/
+blob-report/
+e2e-results/
+*.log
+*.pid
+
+# Env files: every local env file holds secrets; examples are committed.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Keys - never commit private keys
+*.json.bak
+deploy-keypair.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
