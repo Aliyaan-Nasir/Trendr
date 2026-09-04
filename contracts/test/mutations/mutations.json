@@ -1,0 +1,258 @@
+[
+  {
+    "id": "outcome-redeem-keeps-down",
+    "bug": "redeemSets pays out without burning the DOWN token",
+    "file": "src/outcome/OutcomeMarkets.sol",
+    "find": "        s.up.burn(msg.sender, amount);\n        s.down.burn(msg.sender, amount);\n        collateral.safeTransfer(to, amount);",
+    "replace": "        s.up.burn(msg.sender, amount);\n        collateral.safeTransfer(to, amount);",
+    "suite": "OutcomeInvariants"
+  },
+  {
+    "id": "perp-funding-overcredit",
+    "bug": "the receiving side is credited twice what the paying side pays",
+    "file": "src/perp/AttentionPerp.sol",
+    "find": "cumShort -= Math.mulDiv(perContract, m.longQty, m.shortQty).toInt256();",
+    "replace": "cumShort -= (2 * Math.mulDiv(perContract, m.longQty, m.shortQty)).toInt256();",
+    "suite": "PerpInvariants"
+  },
+  {
+    "id": "perp-fee-double-count",
+    "bug": "the curation share of a fee is also booked as protocol fees",
+    "file": "src/perp/AttentionPerp.sol",
+    "find": "protocolFees += fee - toPool - toCuration;",
+    "replace": "protocolFees += fee - toPool;",
+    "suite": "PerpInvariants"
+  },
+  {
+    "id": "curation-double-credit",
+    "bug": "curation credits the surfacer twice the amount received",
+    "file": "src/CurationFees.sol",
+    "find": "claimable[surfacer] += amount;",
+    "replace": "claimable[surfacer] += amount * 2;",
+    "suite": "PerpInvariants"
+  },
+  {
+    "id": "curve-free-floor",
+    "bug": "the attention floor rises without paying for it from the floor reserve",
+    "file": "src/curve/BondingCurve.sol",
+    "find": "        c.virtualQuote += delta;\n        c.floorReserve -= cost;\n        c.reserve += cost;",
+    "replace": "        c.virtualQuote += delta;",
+    "suite": "CurveInvariants"
+  },
+  {
+    "id": "curve-graduation-drops-floor",
+    "bug": "graduation zeroes the floor reserve without sending it to the market",
+    "file": "src/curve/BondingCurve.sol",
+    "find": "uint256 quoteAmount = c.reserve + c.floorReserve + c.graduationLiquidity;",
+    "replace": "uint256 quoteAmount = c.reserve + c.graduationLiquidity;",
+    "suite": "CurveInvariants"
+  },
+  {
+    "id": "registry-open-door",
+    "bug": "onReport accepts writes from any caller",
+    "file": "src/TrendRegistry.sol",
+    "find": "        if (msg.sender != forwarder) revert NotForwarder();\n",
+    "replace": "",
+    "suite": "RegistryInvariants"
+  },
+  {
+    "id": "registry-loose-breaker",
+    "bug": "the circuit breaker allows three times the configured move",
+    "file": "src/TrendRegistry.sol",
+    "find": "uint256 maxDelta = uint256(last) * maxMoveBps / BPS;",
+    "replace": "uint256 maxDelta = uint256(last) * maxMoveBps * 3 / BPS;",
+    "suite": "RegistryInvariants"
+  },
+  {
+    "id": "registry-settlement-off-by-one",
+    "bug": "settlement skips an observation made exactly at expiry",
+    "file": "src/TrendRegistry.sol",
+    "find": "if (at_ < ts) lo = mid + 1;",
+    "replace": "if (at_ <= ts) lo = mid + 1;",
+    "suite": "RegistryInvariants"
+  },
+  {
+    "id": "registry-never-stale",
+    "bug": "isFresh ignores the staleness limit",
+    "file": "src/TrendRegistry.sol",
+    "find": "return t.status != Status.None && _since(t.updatedAt) <= stalenessLimit;",
+    "replace": "return t.status != Status.None;",
+    "suite": "RegistryInvariants"
+  },
+  {
+    "id": "session-no-spend-limit",
+    "bug": "session batches skip the daily spend limit",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "        if (spent > remaining) revert SpendLimitExceeded(spent, remaining);\n",
+    "replace": "",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "session-recipient-unpinned",
+    "bug": "session calls ignore the pinned recipient argument",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "if (rule & RULE_SET != 0) return (_recipientIsSelf(c.data, uint8(rule)), _guardOf(rule));",
+    "replace": "if (rule & RULE_SET != 0) return (true, _guardOf(rule));",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "session-allowance-left",
+    "bug": "session batches may leave an approval behind",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "if (IERC20(c.target).allowance(address(this), spender) != 0) {",
+    "replace": "if (false && IERC20(c.target).allowance(address(this), spender) != 0) {",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "session-net-spend",
+    "bug": "the daily limit counts the batch's net outflow, so inflows earlier in a batch pay for later outflows",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "            if (balanceAfter < balance) spent += balance - balanceAfter;\n            balance = balanceAfter;\n",
+    "replace": "            spent = balanceAfter < balance ? balance - balanceAfter : 0;\n",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "session-skips-guard",
+    "bug": "session calls run without the guard their permission names",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "            if (guards[i] != address(0)) _checkGuard(i, guards[i], calls[i]);\n",
+    "replace": "",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "session-v1-carries-over",
+    "bug": "sessions version 1 added stay active after the upgrade",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "return s.active && s.version == VERSION;",
+    "replace": "return s.active;",
+    "suite": "PasskeyAccountUpgradeTest"
+  },
+  {
+    "id": "session-untagged-rules",
+    "bug": "rules version 1 wrote permit calls under version 2",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "if (rule & RULE_SET != 0) return (_recipientIsSelf(c.data, uint8(rule)), _guardOf(rule));",
+    "replace": "if (rule != 0) return (_recipientIsSelf(c.data, uint8(rule)), _guardOf(rule));",
+    "suite": "PasskeyAccountUpgradeTest"
+  },
+  {
+    "id": "upgrade-twice",
+    "bug": "upgrade can run again, re-adding sessions the owner revoked since",
+    "file": "src/account/PasskeyAccount.sol",
+    "find": "        if ($.version >= VERSION) revert AlreadyUpgraded();\n",
+    "replace": "",
+    "suite": "PasskeyAccountUpgradeTest"
+  },
+  {
+    "id": "guard-ignores-band",
+    "bug": "the Perpl guard accepts any price below twice the mark",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (distance > mark || distance * BPS > mark * bandBps) {",
+    "replace": "if (distance > mark) {",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "guard-allows-resting",
+    "bug": "the Perpl guard lets orders rest on the book",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (!o.immediateOrCancel || o.postOnly) revert MustBeImmediate(index);",
+    "replace": "if (o.postOnly) revert MustBeImmediate(index);",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "guard-stale-mark",
+    "bug": "the Perpl guard prices against a mark of any age",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (mark == 0 || block.timestamp > info.markTimestamp + maxMarkAge) {",
+    "replace": "if (mark == 0) {",
+    "suite": "PerplOrderGuardTest"
+  },
+  {
+    "id": "guard-ignores-leverage",
+    "bug": "the Perpl guard lets a session open at any leverage",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (o.orderType <= OPEN_SHORT && (o.leverageHdths == 0 || o.leverageHdths > maxLeverageHdths)) {",
+    "replace": "if (o.orderType <= OPEN_SHORT && o.leverageHdths == 0) {",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "guard-allows-zero-leverage",
+    "bug": "the Perpl guard leaves an opening without leverage to Perpl",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (o.orderType <= OPEN_SHORT && (o.leverageHdths == 0 || o.leverageHdths > maxLeverageHdths)) {",
+    "replace": "if (o.orderType <= OPEN_SHORT && o.leverageHdths > maxLeverageHdths) {",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "guard-caps-closes",
+    "bug": "the Perpl guard refuses closes that name a leverage above the cap",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (o.orderType <= OPEN_SHORT && (o.leverageHdths == 0 || o.leverageHdths > maxLeverageHdths)) {",
+    "replace": "if (o.orderType <= CLOSE_SHORT && (o.leverageHdths == 0 || o.leverageHdths > maxLeverageHdths)) {",
+    "suite": "SessionInvariants"
+  },
+  {
+    "id": "guard-cap-off-by-one",
+    "bug": "the Perpl guard refuses an opening at exactly the cap",
+    "file": "src/account/guards/PerplOrderGuard.sol",
+    "find": "if (o.orderType <= OPEN_SHORT && (o.leverageHdths == 0 || o.leverageHdths > maxLeverageHdths)) {",
+    "replace": "if (o.orderType <= OPEN_SHORT && (o.leverageHdths == 0 || o.leverageHdths >= maxLeverageHdths)) {",
+    "suite": "PerplOrderGuardTest"
+  },
+  {
+    "id": "registry-loose-settlement-tolerance",
+    "bug": "lazy settlement accepts observations far beyond the tolerance",
+    "file": "src/TrendRegistry.sol",
+    "find": "if (found && at <= uint256(expiry) + settlementTolerance) return (true, observed);",
+    "replace": "if (found && at <= uint256(expiry) + settlementTolerance * 4) return (true, observed);",
+    "suite": "RegistryInvariants"
+  },
+  {
+    "id": "perp-open-for-wrong-owner",
+    "bug": "openFor assigns the position to the payer instead of the owner",
+    "file": "src/perp/AttentionPerp.sol",
+    "find": "            owner: owner,\n",
+    "replace": "            owner: msg.sender,\n",
+    "suite": "PerpInvariants"
+  },
+  {
+    "id": "listing-adopts-foreign-pair",
+    "bug": "adopt records a market whose base is another token",
+    "file": "src/outcome/OutcomeListing.sol",
+    "find": "            base != token || marketQuote != quote",
+    "replace": "            marketQuote != quote",
+    "suite": "OutcomeListingTest"
+  },
+  {
+    "id": "spot-skips-the-minimum",
+    "bug": "TrendrSpot accepts a zero minimum output, so a session trade has no price protection",
+    "file": "src/spot/TrendrSpot.sol",
+    "find": "        if (minOut == 0) revert NoMinimumOut();\n",
+    "replace": "",
+    "suite": "TrendrSpotTest"
+  },
+  {
+    "id": "spot-sell-ignores-the-band",
+    "bug": "a session sale trusts the caller's minimum, so a stolen session key can sell into the thief's bid",
+    "file": "src/spot/TrendrSpot.sol",
+    "find": "        out = _sell(token, market, amountIn, least > minOut ? least : minOut, to);\n",
+    "replace": "        out = _sell(token, market, amountIn, minOut, to);\n",
+    "suite": "TrendrSpot"
+  },
+  {
+    "id": "spot-buy-ignores-the-band",
+    "bug": "a session purchase trusts the caller's minimum, so a stolen session key can buy from the thief's ask",
+    "file": "src/spot/TrendrSpot.sol",
+    "find": "        out = _buy(token, market, ausdIn, least > minOut ? least : minOut, to);\n",
+    "replace": "        out = _buy(token, market, ausdIn, minOut, to);\n",
+    "suite": "TrendrSpot"
+  },
+  {
+    "id": "pricing-ties-go-up",
+    "bug": "the attention-implied price counts a tie with the opening index as an UP win",
+    "file": "src/spot/AttentionPricing.sol",
+    "find": "uint256 above = index > opening ? WAD : 0;",
+    "replace": "uint256 above = index >= opening ? WAD : 0;",
+    "suite": "AttentionPricingTest"
+  }
+]
