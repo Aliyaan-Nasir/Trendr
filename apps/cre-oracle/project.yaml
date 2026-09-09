@@ -1,0 +1,10 @@
+# CRE project settings: one target per network. RPC URLs may reference ${VARS} from .env.
+testnet:
+  rpcs:
+    - chain-name: monad-testnet
+      url: https://testnet-rpc.monad.xyz
+
+mainnet:
+  rpcs:
+    - chain-name: monad-mainnet
+      url: https://rpc.monad.xyz
