@@ -1,0 +1,16 @@
+{
+  "name": "@trendr/cre-oracle",
+  "private": true,
+  "description": "Chainlink CRE workflow that computes Trendr attention indices and reports them to TrendRegistry.",
+  "packageManager": "pnpm@10.7.0",
+  "scripts": {
+    "setup": "cd attention-index && bun install --frozen-lockfile",
+    "cre:simulate": "cre workflow simulate attention-index --target testnet --non-interactive --trigger-index 0",
+    "cre:simulate:mainnet": "cre workflow simulate attention-index --target mainnet --env .env.mainnet --non-interactive --trigger-index 0",
+    "sync-config": "bun scripts/sync-config.ts",
+    "test": "cd attention-index && bun test && cd .. && bun test ./scripts",
+    "typecheck": "cd attention-index && bunx tsc --noEmit",
+    "cre:loop": "bun scripts/loop.ts --target testnet --every 60",
+    "cre:loop:mainnet": "bun scripts/loop.ts --target mainnet"
+  }
+}
