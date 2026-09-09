@@ -1,0 +1,12 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 200,
+  "body": {
+    "result": {
+      "evm": "0x5181Ad08975Ac86A2b6368497a96F06FC0Bb4e63",
+      "originAccount": "0x2222222222222222222222222222222222222222",
+      "originType": "evm",
+      "solana": "CucW8D3h6tXgc5GgNXrTuzgM51eu5WS1x2VsE8oUqCsk"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 200,
+  "request": {
+    "dry": true,
+    "swapType": "EXACT_INPUT",
+    "depositType": "ORIGIN_CHAIN",
+    "originAsset": "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near",
+    "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx",
+    "amount": "10000000",
+    "slippageTolerance": 50,
+    "refundTo": "7XSfQkK1y1pX6dGqH4cJRtBZ2Ffq6dUQUh8m3WwDXqR3",
+    "refundType": "ORIGIN_CHAIN",
+    "recipient": "0x2222222222222222222222222222222222222222",
+    "recipientType": "DESTINATION_CHAIN",
+    "deadline": "2026-10-09T20:19:26.000Z"
+  },
+  "body": {
+    "timestamp": "2026-10-09T19:49:27.145Z",
+    "signature": "ed25519:ZMewWEZGh6VE3zqryL696MYgvFwPvmJ5jvBHtCNzZLHg5M2X5tvpxygg7F9s9UNeox8Em7v6oeo32BnAvGwFdUc",
+    "correlationId": "4c789488-1342-40b0-b226-b9baf3d918fc",
+    "quoteRequest": {
+      "dry": true,
+      "swapType": "EXACT_INPUT",
+      "depositType": "ORIGIN_CHAIN",
+      "depositMode": "SIMPLE",
+      "quoteWaitingTimeMs": 0,
+      "confidentiality": "public",
+      "amount": "10000000",
+      "originAsset": "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near",
+      "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx",
+      "slippageTolerance": 50,
+      "refundTo": "7XSfQkK1y1pX6dGqH4cJRtBZ2Ffq6dUQUh8m3WwDXqR3",
+      "refundType": "ORIGIN_CHAIN",
+      "recipient": "0x2222222222222222222222222222222222222222",
+      "recipientType": "DESTINATION_CHAIN",
+      "deadline": "2026-10-09T20:19:26.000Z",
+      "referral": "trendr-fixture",
+      "appFees": [
+        {
+          "recipient": "fee-recipient.fixture",
+          "fee": 2
+        }
+      ]
+    },
+    "quote": {
+      "timeEstimate": 22,
+      "amountIn": "10000000",
+      "amountInFormatted": "10.0",
+      "amountInUsd": "9.996590000000",
+      "minAmountIn": "10000000",
+      "amountOut": "9995317",
+      "amountOutFormatted": "9.995317",
+      "amountOutUsd": "9.991908596903",
+      "minAmountOut": "9945340",
+      "refundFee": "290980",
+      "withdrawFee": "653"
+    }
+  }
+}

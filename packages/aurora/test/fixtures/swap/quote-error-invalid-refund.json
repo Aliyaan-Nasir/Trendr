@@ -1,0 +1,24 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 400,
+  "request": {
+    "dry": true,
+    "swapType": "EXACT_INPUT",
+    "depositType": "ORIGIN_CHAIN",
+    "originAsset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+    "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx",
+    "amount": "10000000",
+    "slippageTolerance": 50,
+    "refundTo": "not-an-address",
+    "refundType": "ORIGIN_CHAIN",
+    "recipient": "0x2222222222222222222222222222222222222222",
+    "recipientType": "DESTINATION_CHAIN",
+    "deadline": "2026-10-09T20:19:28.000Z"
+  },
+  "body": {
+    "message": "refundTo is not valid",
+    "correlationId": "829e9dde-14a6-468e-bc18-19dd73c483b4",
+    "timestamp": "2026-10-09T19:49:28.879Z",
+    "path": "/v0/quote"
+  }
+}

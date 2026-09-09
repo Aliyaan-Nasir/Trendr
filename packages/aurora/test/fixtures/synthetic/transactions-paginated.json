@@ -1,0 +1,42 @@
+{
+  "source": "The documented example of GET /api/transactions/{apiKey} (Intents Deposits API integration page), in the paginated shape.",
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "originAsset": "nep141:wrap.near",
+        "destinationAsset": "nep141:sol-0xaad74c68eecfc9f8c5bdcea614f6167048c795ef.omdep.near",
+        "depositAddress": "42518b0fae0ba57ab1c671d05f0f27b78a9f9393850def062dea189299103930",
+        "depositMemo": null,
+        "depositAddressAndMemo": "42518b0fae0ba57ab1c671d05f0f27b78a9f9393850def062dea189299103930",
+        "recipient": "your-account.near",
+        "status": "SUCCESS",
+        "createdAt": "2026-04-08T15:29:12.274Z",
+        "createdAtTimestamp": 1775662152,
+        "intentHashes": "3GvvNb1ujKyZzfBYigzNykJsWuHUu1BHftpR6xfYMkX4",
+        "referral": "aurora-widget-widget-studio-user",
+        "amountInFormatted": "2.0",
+        "amountOutFormatted": "406.722426",
+        "appFees": [{ "fee": 20, "recipient": "widget_collect.sputnik-dao.near" }],
+        "nearTxHashes": ["224p1YPQaBicpGXj2Gz2PthGDaXukNzhGAGkGLen26ze", "2mJ9Yid2fvCubFY1QLBxUGc28mzfrjFXAJWVUvhtZ7cB"],
+        "originChainTxHashes": [],
+        "destinationChainTxHashes": [],
+        "amountIn": "2000000000000000000000000",
+        "amountInUsd": "2.7000",
+        "amountOut": "407031063",
+        "amountOutUsd": "2.6869",
+        "refundTo": "your-account.near",
+        "senders": [],
+        "refundReason": null,
+        "refundFeeFormatted": "0",
+        "refundFee": "0"
+      }
+    ],
+    "totalPages": 1,
+    "page": 1,
+    "perPage": 50,
+    "total": 1,
+    "nextPage": null,
+    "prevPage": null
+  }
+}

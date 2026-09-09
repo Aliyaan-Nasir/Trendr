@@ -1,0 +1,5 @@
+{
+  "source": "The documented 429 body (Rate Limits page); Retry-After is a response header.",
+  "status": 429,
+  "body": { "message": "Rate limit exceeded", "error": "Too Many Requests", "statusCode": 429 }
+}

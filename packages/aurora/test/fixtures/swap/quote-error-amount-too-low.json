@@ -1,0 +1,24 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 400,
+  "request": {
+    "dry": true,
+    "swapType": "EXACT_INPUT",
+    "depositType": "ORIGIN_CHAIN",
+    "originAsset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+    "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx",
+    "amount": "1000",
+    "slippageTolerance": 50,
+    "refundTo": "0x1111111111111111111111111111111111111111",
+    "refundType": "ORIGIN_CHAIN",
+    "recipient": "0x2222222222222222222222222222222222222222",
+    "recipientType": "DESTINATION_CHAIN",
+    "deadline": "2026-10-09T20:19:27.000Z"
+  },
+  "body": {
+    "message": "Amount is too low for bridge, try at least 150000",
+    "correlationId": "731bd596-a126-428a-b798-9ca80f465e44",
+    "timestamp": "2026-10-09T19:49:28.552Z",
+    "path": "/v0/quote"
+  }
+}

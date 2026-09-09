@@ -1,0 +1,13 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 200,
+  "body": {
+    "data": [],
+    "page": 1,
+    "perPage": 5,
+    "total": 0,
+    "totalPages": 0,
+    "nextPage": null,
+    "prevPage": null
+  }
+}

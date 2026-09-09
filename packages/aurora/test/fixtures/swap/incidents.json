@@ -1,0 +1,39 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 200,
+  "body": {
+    "status": "incidents",
+    "incidents": [
+      {
+        "scopeType": "address",
+        "scopeValue": "0xb2794d22898852d8965662c7cafa95c5016012b5",
+        "direction": "*",
+        "publicDescription": "",
+        "id": "3cd63d06-78d1-483d-add1-13e886f23eb1",
+        "status": "active",
+        "description": "trimmed",
+        "resolveDescription": null,
+        "resolvedBy": null,
+        "metadata": null,
+        "createdAt": "2026-10-06T15:09:09.206Z",
+        "updatedAt": "2026-10-07T20:54:01.030Z",
+        "resolvedAt": null
+      },
+      {
+        "scopeType": "address",
+        "scopeValue": "0x12Ad71997Ed305474A3C56a4405A954C85AfF11b",
+        "direction": "*",
+        "publicDescription": null,
+        "id": "0698f4c2-ddb0-43b7-ae7d-7114f0931e6b",
+        "status": "active",
+        "description": "trimmed",
+        "resolveDescription": null,
+        "resolvedBy": null,
+        "metadata": null,
+        "createdAt": "2026-10-06T20:54:31.444Z",
+        "updatedAt": "2026-10-06T20:54:31.444Z",
+        "resolvedAt": null
+      }
+    ]
+  }
+}

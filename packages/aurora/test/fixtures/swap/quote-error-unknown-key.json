@@ -1,0 +1,9 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 404,
+  "body": {
+    "message": "Application key not found",
+    "error": "Not Found",
+    "statusCode": 404
+  }
+}

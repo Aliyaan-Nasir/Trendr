@@ -1,0 +1,17 @@
+{
+  "recorded": "2026-10-09T19:21:00.000Z",
+  "note": "Recorded once by hand: the key is not approved for persistent addresses, so nothing was created.",
+  "status": 403,
+  "request": {
+    "recipient": "0xda55F7263b7e4D9B36b2F542EEC99fc3b5Dfae7a",
+    "sender": "trendr-aurora-livetest",
+    "depositChain": "evm",
+    "destinationChain": "monad",
+    "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx"
+  },
+  "body": {
+    "message": "Persistent deposit address creation is not enabled for this API key",
+    "error": "Forbidden",
+    "statusCode": 403
+  }
+}

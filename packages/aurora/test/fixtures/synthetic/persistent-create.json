@@ -1,0 +1,9 @@
+{
+  "source": "Shape from the documented 200 response of POST /api/persistent-deposit-address/{apiKey}; not recorded, because Trendr's key is not approved (HTTP 403).",
+  "status": 200,
+  "body": {
+    "depositAddress": "0x3a5e7b1c9d2f4e6a8b0c1d2e3f4a5b6c7d8e9f01",
+    "alreadyExists": false,
+    "correlationId": "5b2c6a1e-8f4d-4c3b-9a7e-1d2f3e4a5b6c"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "recorded": "2026-10-09T19:49:23.064Z",
+  "status": 200,
+  "request": {
+    "version": "1.0",
+    "type": "evm",
+    "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx",
+    "steps": [
+      {
+        "to": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+        "value": "0",
+        "functionSignature": "transfer(address,uint256)",
+        "parameters": [
+          "0x2222222222222222222222222222222222222222",
+          "1000000"
+        ]
+      },
+      {
+        "to": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a",
+        "value": "0",
+        "functionSignature": "transfer(address,uint256)",
+        "parameters": [
+          "0x2222222222222222222222222222222222222222",
+          "500000"
+        ]
+      }
+    ],
+    "metadata": {
+      "title": "Sweep to Trendr account",
+      "intent": "trendr_sweep"
+    },
+    "dry": true
+  },
+  "body": {
+    "result": {
+      "createdAt": "2026-10-09T19:49:35Z",
+      "details": {
+        "intermediaryAddress": "0x5181Ad08975Ac86A2b6368497a96F06FC0Bb4e63",
+        "messageSigned": false,
+        "networkFee": "2913"
+      },
+      "metadata": {
+        "title": "Sweep to Trendr account",
+        "intent": "trendr_sweep"
+      },
+      "quote": {
+        "depositMemo": null,
+        "destinationAsset": "nep245:v2_1.omni.hot.tg:143_2dmLwYWkCQKyTjeUPAsGJuiVLbFx",
+        "minAmountIn": null,
+        "swapType": null
+      },
+      "status": "OPERATION_PENDING",
+      "steps": [
+        {
+          "to": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+          "value": "0",
+          "functionSignature": "transfer(address,uint256)",
+          "parameters": [
+            "0x2222222222222222222222222222222222222222",
+            "1000000"
+          ]
+        },
+        {
+          "to": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a",
+          "value": "0",
+          "functionSignature": "transfer(address,uint256)",
+          "parameters": [
+            "0x2222222222222222222222222222222222222222",
+            "500000"
+          ]
+        },
+        {
+          "to": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+          "functionSignature": "transfer(address,uint256)",
+          "parameters": [
+            "0x546252c9a0E974f75892b4c54b7a67B69a0aFf45",
+            "2913"
+          ],
+          "value": "0",
+          "metadata": {
+            "name": "Fee Transfer",
+            "description": "Gas fee reimbursement"
+          }
+        }
+      ],
+      "type": "evm",
+      "version": "1.0"
+    }
+  }
+}
