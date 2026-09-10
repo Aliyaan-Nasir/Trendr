@@ -1,0 +1,18 @@
+# Workflow settings per target; keys here override project.yaml.
+testnet:
+  user-workflow:
+    workflow-name: "trendr-attention-testnet"
+    deployment-registry: "private"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.testnet.json"
+    secrets-path: "../secrets.yaml"
+
+mainnet:
+  user-workflow:
+    workflow-name: "trendr-attention-mainnet"
+    deployment-registry: "private"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.mainnet.json"
+    secrets-path: "../secrets.yaml"
