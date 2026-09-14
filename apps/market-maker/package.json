@@ -1,0 +1,26 @@
+{
+  "name": "@trendr/market-maker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Quotes Trendr UP and DOWN tokens on Kuru around their complete-set value and arbitrages mint and redeem against the books.",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test test/pricing.test.ts test/strategy.test.ts test/book.test.ts test/server.test.ts",
+    "test:fork": "MM_FORK=1 bun test test/fork.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trendr/chain": "file:../../packages/chain",
+    "@trendr/contracts": "file:../../packages/contracts-ts",
+    "hono": "4.12.18",
+    "pino": "10.3.1",
+    "viem": "2.57.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.1",
+    "typescript": "5.9.3"
+  }
+}
