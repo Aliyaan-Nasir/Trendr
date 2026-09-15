@@ -1,0 +1,32 @@
+{
+  "name": "@trendr/backend",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Trendr radar, measurement collector and app API: proposes trends to the CRE oracle and serves the app. It never writes prices.",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "migrate": "bun src/db/migrate.ts",
+    "test": "bun test test/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trendr/aurora": "file:../packages/aurora",
+    "@trendr/autopilot": "file:../packages/autopilot",
+    "@trendr/chain": "file:../packages/chain",
+    "@trendr/contracts": "file:../packages/contracts-ts",
+    "@trendr/perpl": "file:../packages/perpl",
+    "hono": "4.12.18",
+    "pino": "10.3.1",
+    "postgres": "3.4.9",
+    "viem": "2.57.4",
+    "web-push": "3.6.7",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.1",
+    "@types/web-push": "3.6.4",
+    "typescript": "5.9.3"
+  }
+}
