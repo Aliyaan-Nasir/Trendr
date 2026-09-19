@@ -1,0 +1,30 @@
+{
+  "name": "@trendr/autopilot-executor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Trend Autopilot and copy-trading executor: evaluates enabled rules and leaders' positions, and trades on Perpl for the Trendr bot (signed API) and for accounts (granted session keys, gas-free through the relayer).",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "seal-keys": "bun scripts/seal-keys.ts",
+    "test": "bun test test/",
+    "test:live": "AUTOPILOT_LIVE=1 bun test test/live.testnet.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trendr/autopilot": "file:../../packages/autopilot",
+    "@trendr/chain": "file:../../packages/chain",
+    "@trendr/contracts": "file:../../packages/contracts-ts",
+    "@trendr/perpl": "file:../../packages/perpl",
+    "hono": "4.12.18",
+    "pino": "10.3.1",
+    "postgres": "3.4.9",
+    "viem": "2.57.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.1",
+    "typescript": "5.9.3"
+  }
+}
