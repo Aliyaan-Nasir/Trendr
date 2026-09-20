@@ -1,0 +1,26 @@
+{
+  "name": "@trendr/topup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Keeps every Trendr sending wallet funded with MON from one treasury wallet, within reserves, cooldowns and daily caps.",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test test/config.test.ts test/plan.test.ts test/alerts.test.ts test/store.test.ts test/topup.test.ts test/server.test.ts",
+    "test:e2e": "TOPUP_E2E=1 bun test test/e2e.anvil.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trendr/chain": "file:../../packages/chain",
+    "hono": "4.12.18",
+    "pino": "10.3.1",
+    "postgres": "3.4.9",
+    "viem": "2.57.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.1",
+    "typescript": "5.9.3"
+  }
+}
