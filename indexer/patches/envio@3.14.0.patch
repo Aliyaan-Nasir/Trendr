@@ -1,0 +1,106 @@
+diff --git a/src/sources/SourceManager.res.mjs b/src/sources/SourceManager.res.mjs
+index 262a81caf31ffdde99ce3229060e6fa5f6a0fe48..46c0211d5a1804d6e16b797fb9102e9b3dbf21b7 100644
+--- a/src/sources/SourceManager.res.mjs
++++ b/src/sources/SourceManager.res.mjs
+@@ -671,7 +671,36 @@ function waitForNewBlock(sourceManager, knownHeight, isRealtime, reducedPolling)
+   });
+ }
+ 
+-async function executeQuery(sourceManager, query, knownHeight, isRealtime) {
++// Trendr patch (indexer/patches/envio@3.14.0.patch). Once a chain has caught up, Envio stays in
++// realtime mode for good (ready_at) and sends every query to the `for: realtime` RPC, gaps included:
++// a few blocks per request plus a block read per block with logs, slower than Monad makes blocks,
++// and the 429s it draws push queries onto HyperSync in slices that exhaust a free token. Here only a
++// query within headGapBlocks of the newest known height uses the realtime RPC (and the fallback RPCs,
++// never HyperSync, whose budget a single block would waste). Anything further behind picks its source
++// as backfill does, HyperSync first, which closes the gap in one request per partition. The choice is
++// made again on every attempt, so a query the RPC cannot serve moves to HyperSync once the head has
++// left it behind. Block inclusion still follows the indexer's mode.
++// 200 blocks is 80 s on Monad, more than the 60 s a rate-limited HyperSync request waits, so the gap
++// that wait leaves goes back to the RPC instead of feeding the next HyperSync request.
++let headGapBlocks = 200;
++
++function newestHeight(sourceManager, knownHeight) {
++  return sourceManager.sourcesState.reduce((height, sourceState) => Math.max(height, HeightFeed.knownHeight(sourceState.feed)), knownHeight);
++}
++
++function withoutHyperSync(sourceManager, excludedSourcesRef) {
++  let excluded = new Set(excludedSourcesRef !== undefined ? Primitive_option.valFromOption(excludedSourcesRef) : []);
++  sourceManager.sourcesState.forEach(sourceState => {
++    if (sourceState.source.sourceFor === "Sync") {
++      excluded.add(sourceState);
++    }
++  });
++  return Primitive_option.some(excluded);
++}
++
++async function executeQuery(sourceManager, query, knownHeight, isRealtimeMode) {
++  let isRealtime = isRealtimeMode;
++  let selectionExcludedRef;
+   let noSourcesError = () => {
+     let reason = sourceManager.disableReason;
+     if (reason !== undefined) {
+@@ -685,14 +714,21 @@ async function executeQuery(sourceManager, query, knownHeight, isRealtime) {
+   let responseRef;
+   let retryRef = 0;
+   while (Stdlib_Option.isNone(responseRef)) {
+-    let s = getNextSource(sourceManager, isRealtime, excludedSourcesRef);
++    let nearHead = isRealtimeMode && newestHeight(sourceManager, knownHeight) - query.fromBlock <= headGapBlocks;
++    if (isRealtime && !nearHead) {
++      // A range the RPC asked to narrow is HyperSync's to serve whole.
++      toBlockRef = query.toBlock;
++    }
++    isRealtime = nearHead;
++    selectionExcludedRef = nearHead && sourceManager.hasRealtime ? withoutHyperSync(sourceManager, excludedSourcesRef) : excludedSourcesRef;
++    let s = getNextSource(sourceManager, isRealtime, selectionExcludedRef);
+     let sourceState;
+     if (s !== undefined) {
+       if (s.source !== sourceManager.activeSource) {
+         let logger = Logging.createChild({
+           chainId: sourceManager.activeSource.chainId
+         });
+-        Logging.childInfo(logger, {
++        Logging.childTrace(logger, {
+           msg: "Switching data-source",
+           source: s.source.name,
+           previousSource: sourceManager.activeSource.name,
+@@ -721,7 +757,7 @@ async function executeQuery(sourceManager, query, knownHeight, isRealtime) {
+       retry: retry
+     });
+     try {
+-      let response = await source.getItemsOrThrow(query.fromBlock, toBlock, query.addresses, isRealtime, knownHeight, query.partitionId, FetchState.narrowSelectionToRange(query.selection, toBlock), query.itemsTarget, retry, logger$2);
++      let response = await source.getItemsOrThrow(query.fromBlock, toBlock, query.addresses, isRealtimeMode, knownHeight, query.partitionId, FetchState.narrowSelectionToRange(query.selection, toBlock), query.itemsTarget, retry, logger$2);
+       recordStatsInto(sourceState.requestStats, response.requestStats);
+       validateResponseBlockStore("getItems", response.blockStore, undefined);
+       sourceState.lastFailedAt = undefined;
+@@ -736,10 +772,10 @@ async function executeQuery(sourceManager, query, knownHeight, isRealtime) {
+         retryRef = retryRef + 1 | 0;
+       } else if (err.RE_EXN_ID === Source.SourceBehindHead) {
+         recordStatsInto(sourceState.requestStats, err.requestStats);
+-        await retryBehindHead(sourceManager, sourceState, retry, isRealtime, logger$2, err.blockNumber, "getItems", err, excludedSourcesRef);
++        await retryBehindHead(sourceManager, sourceState, retry, isRealtime, logger$2, err.blockNumber, "getItems", err, selectionExcludedRef);
+         retryRef = retryRef + 1 | 0;
+       } else if (err.RE_EXN_ID === Source.InconsistentResponse) {
+-        await retryInconsistentResponse(sourceManager, sourceState, retry, isRealtime, logger$2, "getItems", err, excludedSourcesRef);
++        await retryInconsistentResponse(sourceManager, sourceState, retry, isRealtime, logger$2, "getItems", err, selectionExcludedRef);
+         retryRef = retryRef + 1 | 0;
+       } else if (err.RE_EXN_ID === Source.GetItemsError) {
+         let error = err._1;
+@@ -759,7 +795,7 @@ async function executeQuery(sourceManager, query, knownHeight, isRealtime) {
+               case "WithSuggestedToBlock" :
+                 let toBlock$1 = match$1.toBlock;
+                 if (toBlock$1 >= attemptedToBlock) {
+-                  await retryFailedPage(sourceManager, sourceState, retry, isRealtime, logger$2, `The ` + source.name + ` source rejected the block range and suggested #` + toBlock$1.toString() + `, which is no narrower than the #` + attemptedToBlock.toString() + ` it just refused.`, attemptedToBlock, Utils.expBackoff(100, retry, 60000), 50, exn, excludedSourcesRef);
++                  await retryFailedPage(sourceManager, sourceState, retry, isRealtime, logger$2, `The ` + source.name + ` source rejected the block range and suggested #` + toBlock$1.toString() + `, which is no narrower than the #` + attemptedToBlock.toString() + ` it just refused.`, attemptedToBlock, Utils.expBackoff(100, retry, 60000), 50, exn, selectionExcludedRef);
+                   retryRef = retryRef + 1 | 0;
+                 } else {
+                   Logging.childTrace(logger$2, {
+@@ -772,7 +808,7 @@ async function executeQuery(sourceManager, query, knownHeight, isRealtime) {
+                 }
+                 break;
+               case "WithBackoff" :
+-                await retryFailedPage(sourceManager, sourceState, retry, isRealtime, logger$2, match$1.message, attemptedToBlock, match$1.backoffMillis, undefined, exn, excludedSourcesRef);
++                await retryFailedPage(sourceManager, sourceState, retry, isRealtime, logger$2, match$1.message, attemptedToBlock, match$1.backoffMillis, undefined, exn, selectionExcludedRef);
+                 retryRef = retryRef + 1 | 0;
+                 break;
+               case "ImpossibleForTheQuery" :

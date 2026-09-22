@@ -1,0 +1,2 @@
+patchedDependencies:
+  envio@3.14.0: patches/envio@3.14.0.patch

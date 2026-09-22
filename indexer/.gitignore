@@ -1,0 +1,6 @@
+node_modules/
+# Written by `envio codegen` and `envio start`.
+.envio/
+build/
+logs/
+.env
