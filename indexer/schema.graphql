@@ -1,0 +1,951 @@
+# Trendr indexer schema.
+#
+# Units. BigInt fields hold raw on-chain integers; their BigDecimal companions hold human units and
+# are named by unit: ...Ausd (AUSD, the quote coin), ...Points (attention index points) and
+# ...Tokens (token quantities).
+# - AUSD and every collateral amount: 6 decimals.
+# - Outcome (UP and DOWN) tokens: the collateral's decimals, so 6.
+# - Trend coins: 18 decimals.
+# - Attention index: 6 decimals, 1_000_000 is one index point.
+# - AttentionPerp quantities: 18 decimals; one contract pays 1 AUSD per index point.
+# - Kuru fill prices: 1e18-scaled AUSD per whole base token; Kuru order prices and sizes use each
+#   market's pricePrecision and sizePrecision.
+# - Perpl amounts keep Perpl's suffixes: CNS collateral (6 decimals), PNS price and LNS lot (per
+#   market decimals, see PerplMarket).
+# Times are unix seconds; block numbers are Int. Entities are per chain (chain_id column).
+# Event entity ids are "<block>-<logIndex>" unless stated otherwise.
+
+enum AssetClass {
+  CRYPTO
+  EQUITY
+  COMMODITY
+  FX
+  PERSON
+  POLITICS
+  TOPIC
+}
+
+enum TrendStatus {
+  NONE
+  ACTIVE
+  COOLING
+  RETIRED
+}
+
+enum SeriesOutcome {
+  OPEN
+  UP
+  DOWN
+  VOID
+}
+
+enum TokenKind {
+  UP
+  DOWN
+  TREND_COIN
+}
+
+enum AccountKind {
+  "Any other address that traded or holds Trendr tokens."
+  USER
+  "An EOA running PasskeyAccount delegated code (EIP-7702)."
+  PASSKEY
+  "A Trendr service wallet, such as the Perpl bot."
+  BOT
+  "Infrastructure that only holds tokens in passing, such as Kuru's MarginAccount or Router."
+  PROTOCOL
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+  LIQUIDATED
+}
+
+enum OrderStatus {
+  OPEN
+  FILLED
+  CANCELED
+}
+
+enum CurveState {
+  OPEN
+  READY
+  GRADUATED
+}
+
+enum SwapSource {
+  TRENDR_SPOT
+  KURU_ROUTER
+}
+
+enum CurationSource {
+  PERP
+  CURVE
+  OTHER
+}
+
+enum PerplAction {
+  OPEN
+  INCREASE
+  DECREASE
+  CLOSE
+  INVERT
+  LIQUIDATE
+  DELEVERAGE
+}
+
+enum PerplRole {
+  MAKER
+  TAKER
+}
+
+# ---------------------------------------------------------------------------------------------
+# Protocol
+# ---------------------------------------------------------------------------------------------
+
+"Protocol-wide totals, one row per chain with id 'trendr'."
+type Protocol {
+  id: ID!
+  trendCount: Int!
+  seriesCount: Int!
+  kuruMarketCount: Int!
+  curveCount: Int!
+  graduationCount: Int!
+  "Accounts with at least one trade."
+  traderCount: Int!
+  passkeyAccountCount: Int!
+  perpOpenPositionCount: Int!
+  "AUSD paid into complete sets."
+  outcomeMintVolume: BigInt!
+  "AUSD traded on the Kuru books of UP and DOWN tokens."
+  outcomeSpotVolume: BigInt!
+  "AUSD notional of AttentionPerp opens plus closes and liquidations."
+  perpVolume: BigInt!
+  "AUSD traded on bonding curves, fees included."
+  curveVolume: BigInt!
+  "AUSD traded on the Kuru books of graduated trend coins."
+  coinSpotVolume: BigInt!
+  "AUSD notional of Trendr accounts' Perpl fills."
+  perplVolume: BigInt!
+  "Sum of the volumes above."
+  volume: BigInt!
+  volumeAusd: BigDecimal!
+  tradeCount: Int!
+  curationAccrued: BigInt!
+  curationClaimed: BigInt!
+  perpPoolDeposits: BigInt!
+  lastOracleRunId: BigInt
+  lastOracleObservedAt: BigInt
+  updatedAt: BigInt!
+}
+
+"One CRE oracle report applied by TrendRegistry. Id is the run id."
+type OracleRun {
+  id: ID!
+  runId: BigInt!
+  observedAt: BigInt!
+  created: Int!
+  updated: Int!
+  settled: Int!
+  rejected: Int!
+  blockNumber: Int!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+# ---------------------------------------------------------------------------------------------
+# Trends and the attention index
+# ---------------------------------------------------------------------------------------------
+
+"A trend from TrendRegistry. Id is keccak256(identifier) as 0x hex."
+type Trend {
+  id: ID!
+  identifier: String!
+  assetClass: AssetClass!
+  status: TrendStatus!
+  statusSince: BigInt!
+  "Account that first surfaced the trend; null when none was named and curation credits the treasury."
+  surfacer: Account
+  "Oracle observation time of the creating report."
+  createdAt: BigInt!
+  createdBlock: Int!
+  createdTxHash: String!
+  openingIndex: BigInt!
+  openingIndexPoints: BigDecimal!
+  index: BigInt!
+  indexPoints: BigDecimal!
+  peakIndex: BigInt!
+  peakIndexPoints: BigDecimal!
+  "Observation time of the latest index value."
+  indexObservedAt: BigInt!
+  updateCount: Int!
+  clampedCount: Int!
+  stats: TrendStats!
+  curve: Curve
+  history: [IndexPoint!]! @derivedFrom(field: "trend")
+  statusChanges: [TrendStatusChange!]! @derivedFrom(field: "trend")
+  settlements: [Settlement!]! @derivedFrom(field: "trend")
+  series: [Series!]! @derivedFrom(field: "trend")
+  kuruMarkets: [KuruMarket!]! @derivedFrom(field: "trend")
+  perpPositions: [PerpPosition!]! @derivedFrom(field: "trend")
+  fundingMarks: [FundingMark!]! @derivedFrom(field: "trend")
+  dayData: [TrendDayData!]! @derivedFrom(field: "trend")
+  curationAccruals: [CurationAccrual!]! @derivedFrom(field: "trend")
+  accounts: [TrendAccount!]! @derivedFrom(field: "trend")
+}
+
+"One attention index observation. Id is '<trendId>-<observedAt>'."
+type IndexPoint {
+  id: ID!
+  trend: Trend!
+  index: BigInt!
+  indexPoints: BigDecimal!
+  peakIndex: BigInt!
+  observedAt: BigInt! @index
+  "True when the registry clamped the proposed value to its maximum move."
+  clamped: Boolean!
+  blockNumber: Int!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+type TrendStatusChange {
+  id: ID!
+  trend: Trend!
+  fromStatus: TrendStatus!
+  toStatus: TrendStatus!
+  at: BigInt!
+  blockNumber: Int!
+  txHash: String!
+}
+
+"A finalized outcome settlement value. Id is '<trendId>-<expiry>'."
+type Settlement {
+  id: ID!
+  trend: Trend!
+  expiry: BigInt!
+  value: BigInt!
+  valuePoints: BigDecimal!
+  blockNumber: Int!
+  timestamp: BigInt!
+}
+
+"Running per-trend aggregates. Id is the trend id. Volumes are AUSD (6 decimals)."
+type TrendStats {
+  id: ID!
+  trend: Trend!
+  outcomeMintVolume: BigInt!
+  outcomeSpotVolume: BigInt!
+  perpVolume: BigInt!
+  curveVolume: BigInt!
+  coinSpotVolume: BigInt!
+  volume: BigInt!
+  volumeAusd: BigDecimal!
+  tradeCount: Int!
+  "Accounts that traded this trend in any product."
+  traderCount: Int!
+  "Accounts holding one of the trend's tokens: a wallet balance or an open traded position, which covers tokens escrowed behind Kuru orders (protocol addresses excluded)."
+  holderCount: Int!
+  seriesCount: Int!
+  "Open AttentionPerp contracts per side (18 decimals)."
+  perpLongQty: BigInt!
+  perpShortQty: BigInt!
+  "Open interest per side in AUSD at the latest mark."
+  perpLongOpenInterest: BigInt!
+  perpShortOpenInterest: BigInt!
+  perpLongOpenInterestAusd: BigDecimal!
+  perpShortOpenInterestAusd: BigDecimal!
+  perpOpenPositionCount: Int!
+  "Latest AttentionPerp mark (index units)."
+  perpMark: BigInt
+  "Funding rate per block for the current open interest, 1e18-scaled fraction of notional; positive when longs pay."
+  perpFundingRatePerBlock: BigInt!
+  curationEarned: BigInt!
+  curationEarnedAusd: BigDecimal!
+  updatedAt: BigInt!
+}
+
+"Per-trend daily bucket (UTC days) for charts. Id is '<trendId>-<date>'."
+type TrendDayData {
+  id: ID!
+  trend: Trend!
+  "Start of the UTC day, unix seconds."
+  date: BigInt! @index
+  outcomeMintVolume: BigInt!
+  outcomeSpotVolume: BigInt!
+  perpVolume: BigInt!
+  curveVolume: BigInt!
+  coinSpotVolume: BigInt!
+  volume: BigInt!
+  volumeAusd: BigDecimal!
+  tradeCount: Int!
+  "Index open, high, low and close of the day's observations (index units)."
+  indexOpen: BigInt
+  indexHigh: BigInt
+  indexLow: BigInt
+  indexClose: BigInt
+  "AttentionPerp open interest per side in AUSD at the day's last update."
+  perpLongOpenInterest: BigInt!
+  perpShortOpenInterest: BigInt!
+  fundingMarkCount: Int!
+  curationEarned: BigInt!
+}
+
+"One account's activity on one trend. Id is '<trendId>-<account>'."
+type TrendAccount {
+  id: ID!
+  trend: Trend!
+  account: Account!
+  "Number of the trend's tokens this account holds a non-zero balance of."
+  heldTokenCount: Int!
+  volume: BigInt!
+  tradeCount: Int!
+  realizedPnl: BigInt!
+  firstTradeAt: BigInt
+  lastTradeAt: BigInt
+}
+
+# ---------------------------------------------------------------------------------------------
+# Outcome series and tokens
+# ---------------------------------------------------------------------------------------------
+
+"An UP/DOWN outcome series. Id is the series id."
+type Series {
+  id: ID!
+  trend: Trend!
+  "The OutcomeMarkets contract that issued the series."
+  outcomeMarkets: String!
+  "Window length in seconds."
+  window: Int!
+  windowLabel: String!
+  openedAt: BigInt!
+  expiry: BigInt! @index
+  openingIndex: BigInt!
+  openingIndexPoints: BigDecimal!
+  settlementIndex: BigInt
+  settlementIndexPoints: BigDecimal
+  outcome: SeriesOutcome!
+  settledAt: BigInt
+  upToken: Token!
+  downToken: Token!
+  upMarket: KuruMarket
+  downMarket: KuruMarket
+  "Complete sets minted, redeemed and winnings paid, in AUSD."
+  minted: BigInt!
+  redeemed: BigInt!
+  winningsPaid: BigInt!
+  "Collateral still backing the series: minted minus redeemed minus winnings."
+  backing: BigInt!
+  backingAusd: BigDecimal!
+  mintCount: Int!
+  "AUSD traded on both Kuru books."
+  spotVolume: BigInt!
+  openedBlock: Int!
+  txHash: String!
+}
+
+"A Trendr ERC-20: an UP or DOWN outcome token or a trend coin. Id is the token address."
+type Token {
+  id: ID!
+  kind: TokenKind!
+  trend: Trend!
+  series: Series
+  decimals: Int!
+  totalSupply: BigInt!
+  holderCount: Int!
+  market: KuruMarket
+  createdAt: BigInt!
+}
+
+"""
+An account's UP or DOWN balance. Id is '<token>-<account>'.
+balance follows Transfer events; position, costBasis and realizedPnl follow the account's trades
+(mints, Kuru fills, swaps, redemptions) at average cost, so tokens resting in Kuru's MarginAccount
+still count as the trader's position.
+"""
+type OutcomeTokenBalance {
+  id: ID!
+  account: Account!
+  token: Token!
+  series: Series!
+  trend: Trend!
+  side: TokenKind!
+  balance: BigInt!
+  balanceTokens: BigDecimal!
+  position: BigInt!
+  "AUSD cost of the open position at average cost."
+  costBasis: BigInt!
+  realizedPnl: BigInt!
+  realizedPnlAusd: BigDecimal!
+  updatedAt: BigInt!
+}
+
+"An account's trend coin balance, same accounting as OutcomeTokenBalance. Id is '<token>-<account>'."
+type CoinBalance {
+  id: ID!
+  account: Account!
+  token: Token!
+  curve: Curve!
+  trend: Trend!
+  balance: BigInt!
+  balanceTokens: BigDecimal!
+  position: BigInt!
+  costBasis: BigInt!
+  realizedPnl: BigInt!
+  realizedPnlAusd: BigDecimal!
+  "Realized PnL of the current round trip; reset when the position reopens."
+  cyclePnl: BigInt!
+  updatedAt: BigInt!
+}
+
+# ---------------------------------------------------------------------------------------------
+# Kuru order books
+# ---------------------------------------------------------------------------------------------
+
+"A Trendr token's Kuru spot market against AUSD. Id is the market address."
+type KuruMarket {
+  id: ID!
+  kind: TokenKind!
+  baseToken: Token!
+  quoteToken: String!
+  trend: Trend!
+  series: Series
+  vault: String
+  pricePrecision: BigInt!
+  sizePrecision: BigInt!
+  tickSize: BigInt!
+  minSize: BigInt!
+  maxSize: BigInt!
+  takerFeeBps: Int!
+  makerFeeBps: Int!
+  baseDecimals: Int!
+  quoteDecimals: Int!
+  "True when Trendr's OutcomeListing or graduation venue deployed it."
+  deployedByTrendr: Boolean!
+  recordedAt: BigInt!
+  recordedBlock: Int!
+  volumeBase: BigInt!
+  volumeBaseTokens: BigDecimal!
+  volumeQuote: BigInt!
+  volumeAusd: BigDecimal!
+  fillCount: Int!
+  lastPrice: BigInt
+  lastPriceAusd: BigDecimal
+  lastTradeAt: BigInt
+  openOrderCount: Int!
+  fills: [KuruFill!]! @derivedFrom(field: "market")
+  orders: [KuruOrder!]! @derivedFrom(field: "market")
+}
+
+"One maker order (or AMM vault level) filled by a taker on a Trendr Kuru market."
+type KuruFill {
+  id: ID!
+  market: KuruMarket!
+  trend: Trend!
+  series: Series
+  token: Token!
+  order: KuruOrder
+  "Kuru order id of the maker; 0 for the market's AMM vault."
+  makerOrderId: BigInt!
+  maker: String!
+  makerAccount: Account
+  isVaultFill: Boolean!
+  "msg.sender at the book: the taker, or Kuru's Router for routed swaps."
+  taker: String!
+  "The account that took the liquidity: the taker, or the swap's trader for routed fills."
+  trader: Account
+  txOrigin: String!
+  takerIsBuy: Boolean!
+  price: BigInt!
+  priceAusd: BigDecimal!
+  "Filled size in the market's sizePrecision units."
+  size: BigInt!
+  baseAmount: BigInt!
+  baseTokens: BigDecimal!
+  quoteAmount: BigInt!
+  quoteAusd: BigDecimal!
+  "Size left on the maker order (sizePrecision units)."
+  makerRemaining: BigInt!
+  swap: SpotSwap
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+"A resting Kuru limit order on a Trendr market. Id is '<market>-<orderId>'."
+type KuruOrder {
+  id: ID!
+  market: KuruMarket!
+  orderId: BigInt!
+  owner: Account!
+  isBuy: Boolean!
+  "Limit price in the market's pricePrecision units."
+  price: BigInt!
+  priceAusd: BigDecimal!
+  "Sizes in the market's sizePrecision units."
+  size: BigInt!
+  remaining: BigInt!
+  filled: BigInt!
+  status: OrderStatus!
+  createdAt: BigInt!
+  createdBlock: Int!
+  updatedAt: BigInt!
+  txHash: String!
+  fills: [KuruFill!]! @derivedFrom(field: "order")
+}
+
+"A swap of a Trendr token against AUSD through TrendrSpot or Kuru's Router."
+type SpotSwap {
+  id: ID!
+  source: SwapSource!
+  trader: Account!
+  token: Token!
+  market: KuruMarket!
+  trend: Trend!
+  isBuy: Boolean!
+  amountIn: BigInt!
+  amountOut: BigInt!
+  "Token and AUSD legs of the swap."
+  baseAmount: BigInt!
+  quoteAmount: BigInt!
+  "Average price paid or received, AUSD per token, Kuru fees included."
+  priceAusd: BigDecimal!
+  recipient: String!
+  fills: [KuruFill!]! @derivedFrom(field: "swap")
+  blockNumber: Int!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+# ---------------------------------------------------------------------------------------------
+# Attention perps
+# ---------------------------------------------------------------------------------------------
+
+"An isolated AttentionPerp position. Id is the position id."
+type PerpPosition {
+  id: ID!
+  positionId: BigInt!
+  owner: Account!
+  "Account that paid the margin (differs from owner for openFor deposits)."
+  payer: String!
+  trend: Trend!
+  isLong: Boolean!
+  status: PositionStatus!
+  "Contracts, 18 decimals."
+  qty: BigInt!
+  entryIndex: BigInt!
+  entryIndexPoints: BigDecimal!
+  "Net margin at open plus later top ups, AUSD."
+  margin: BigInt!
+  marginAusd: BigDecimal!
+  marginAdded: BigInt!
+  openFee: BigInt!
+  "Notional at entry, AUSD."
+  notional: BigInt!
+  openedAt: BigInt!
+  openedBlock: Int!
+  openTxHash: String!
+  exitIndex: BigInt
+  exitIndexPoints: BigDecimal
+  "Price PnL reported by the contract."
+  pnl: BigInt
+  "Funding owed by the position (negative when it received funding)."
+  funding: BigInt
+  closeFee: BigInt
+  payout: BigInt
+  "Equity when liquidated."
+  liquidationEquity: BigInt
+  liquidator: String
+  liquidationReward: BigInt
+  "Part of the payout the pool could not cover."
+  socializedLoss: BigInt!
+  "Cash result for the owner: payout minus margin, top ups and the open fee."
+  realizedPnl: BigInt
+  realizedPnlAusd: BigDecimal
+  closedAt: BigInt
+  closedBlock: Int
+  closeTxHash: String
+}
+
+"An AttentionPerp funding mark (Poked)."
+type FundingMark {
+  id: ID!
+  trend: Trend!
+  mark: BigInt!
+  markPoints: BigDecimal!
+  "Cumulative funding per contract, collateral units scaled by 1e18; positive is owed."
+  cumLong: BigInt!
+  cumShort: BigInt!
+  "Funding rate per block that applied up to this mark, 1e18-scaled fraction of notional; positive when longs pay."
+  fundingRatePerBlock: BigInt!
+  "Open contracts per side when the mark was taken (18 decimals)."
+  longQty: BigInt!
+  shortQty: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+# ---------------------------------------------------------------------------------------------
+# Bonding curves and graduation
+# ---------------------------------------------------------------------------------------------
+
+"A trend coin's bonding curve. Id is the trend id."
+type Curve {
+  id: ID!
+  trend: Trend!
+  coin: Token!
+  state: CurveState!
+  "Virtual and real AUSD reserves and coins sold (18 decimals)."
+  virtualQuote: BigInt!
+  reserve: BigInt!
+  reserveAusd: BigDecimal!
+  sold: BigInt!
+  peakAtCreation: BigInt!
+  ratchetBps: BigInt!
+  floorRaiseCount: Int!
+  "Spot price after the latest trade, AUSD per coin."
+  spotPriceAusd: BigDecimal!
+  buyVolume: BigInt!
+  sellVolume: BigInt!
+  feesCollected: BigInt!
+  tradeCount: Int!
+  market: KuruMarket
+  graduation: Graduation
+  createdAt: BigInt!
+  createdBlock: Int!
+  trades: [CurveTrade!]! @derivedFrom(field: "curve")
+}
+
+type CurveTrade {
+  id: ID!
+  curve: Curve!
+  trend: Trend!
+  trader: Account!
+  isBuy: Boolean!
+  "AUSD paid (buy, fee included) or received (sell, fee deducted)."
+  quoteAmount: BigInt!
+  quoteAusd: BigDecimal!
+  coinAmount: BigInt!
+  coinTokens: BigDecimal!
+  fee: BigInt!
+  priceAusd: BigDecimal!
+  reserveAfter: BigInt!
+  soldAfter: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+"A curve's graduation to its Kuru market. Id is the trend id."
+type Graduation {
+  id: ID!
+  curve: Curve!
+  trend: Trend!
+  readyAt: BigInt
+  readyReserve: BigInt
+  pending: Boolean!
+  market: KuruMarket
+  vault: String
+  coinAmount: BigInt
+  quoteAmount: BigInt
+  vaultShares: BigInt
+  graduatedAt: BigInt
+  graduatedBlock: Int
+  txHash: String
+}
+
+# ---------------------------------------------------------------------------------------------
+# Curation
+# ---------------------------------------------------------------------------------------------
+
+type CurationAccrual {
+  id: ID!
+  trend: Trend!
+  surfacer: Account!
+  "Contract that paid the fee share."
+  source: String!
+  sourceProduct: CurationSource!
+  amount: BigInt!
+  amountAusd: BigDecimal!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+"Curation earnings of one surfacer. Id is the surfacer address."
+type CurationEarnings {
+  id: ID!
+  account: Account!
+  earned: BigInt!
+  earnedAusd: BigDecimal!
+  claimed: BigInt!
+  claimable: BigInt!
+  accrualCount: Int!
+  trendCount: Int!
+  lastAccruedAt: BigInt
+  claims: [CurationClaim!]! @derivedFrom(field: "earnings")
+}
+
+type CurationClaim {
+  id: ID!
+  earnings: CurationEarnings!
+  account: Account!
+  recipient: String!
+  amount: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+"Curation earned by one surfacer on one trend. Id is '<trendId>-<surfacer>'."
+type TrendCuration {
+  id: ID!
+  trend: Trend!
+  account: Account!
+  earned: BigInt!
+  accrualCount: Int!
+}
+
+# ---------------------------------------------------------------------------------------------
+# Accounts, track records and leaderboards
+# ---------------------------------------------------------------------------------------------
+
+"Unified portfolio summary of one address. Id is the lowercase address."
+type Account {
+  id: ID!
+  kind: AccountKind!
+  isPasskey: Boolean!
+  passkeyOwnerX: String
+  passkeyOwnerY: String
+  passkeyInitializedAt: BigInt
+  firstSeenAt: BigInt!
+  lastActiveAt: BigInt!
+  "Outcome tokens held (wallet balance or open traded position)."
+  outcomeHoldingCount: Int!
+  "Summed wallet balance of outcome tokens (6 decimals), the most they can pay out."
+  outcomeTokensHeld: BigInt!
+  coinHoldingCount: Int!
+  perpOpenPositionCount: Int!
+  "AUSD locked in open AttentionPerp positions (margin and top ups)."
+  perpMarginLocked: BigInt!
+  "Entry notional of open AttentionPerp positions, AUSD."
+  perpOpenNotional: BigInt!
+  perplOpenPositionCount: Int!
+  "Latest Perpl account balance seen, AUSD."
+  perplCollateral: BigInt!
+  curationClaimable: BigInt!
+  stats: AccountStats
+  perplAccount: PerplAccount
+  outcomeBalances: [OutcomeTokenBalance!]! @derivedFrom(field: "account")
+  coinBalances: [CoinBalance!]! @derivedFrom(field: "account")
+  perpPositions: [PerpPosition!]! @derivedFrom(field: "owner")
+  curveTrades: [CurveTrade!]! @derivedFrom(field: "trader")
+  spotSwaps: [SpotSwap!]! @derivedFrom(field: "trader")
+  kuruOrders: [KuruOrder!]! @derivedFrom(field: "owner")
+  perplPositions: [PerplPosition!]! @derivedFrom(field: "owner")
+  trends: [TrendAccount!]! @derivedFrom(field: "account")
+  dayData: [AccountDayData!]! @derivedFrom(field: "account")
+  curationAccruals: [CurationAccrual!]! @derivedFrom(field: "surfacer")
+}
+
+"""
+Track record of one trader across every product, the leaderboard source. Id is the address.
+A closed trade is a round trip: a perp position closed or liquidated, a Perpl position closed, or
+an outcome or coin position sold, redeemed or paid out back to zero.
+"""
+type AccountStats {
+  id: ID!
+  account: Account!
+  outcomeMintVolume: BigInt!
+  outcomeSpotVolume: BigInt!
+  perpVolume: BigInt!
+  curveVolume: BigInt!
+  coinSpotVolume: BigInt!
+  perplVolume: BigInt!
+  volume: BigInt!
+  volumeAusd: BigDecimal! @index
+  tradeCount: Int!
+  realizedPnl: BigInt!
+  realizedPnlAusd: BigDecimal! @index
+  outcomeRealizedPnl: BigInt!
+  perpRealizedPnl: BigInt!
+  curveRealizedPnl: BigInt!
+  perplRealizedPnl: BigInt!
+  feesPaid: BigInt!
+  closedTrades: Int!
+  wins: Int!
+  losses: Int!
+  "wins / closedTrades, 0 before the first closed trade."
+  winRate: BigDecimal!
+  bestTrade: BigInt
+  worstTrade: BigInt
+  liquidations: Int!
+  firstTradeAt: BigInt!
+  lastTradeAt: BigInt!
+}
+
+"Per-account daily bucket for PnL and volume charts. Id is '<account>-<date>'."
+type AccountDayData {
+  id: ID!
+  account: Account!
+  date: BigInt! @index
+  volume: BigInt!
+  tradeCount: Int!
+  realizedPnl: BigInt!
+  wins: Int!
+  losses: Int!
+}
+
+# ---------------------------------------------------------------------------------------------
+# Perpl (Trendr accounts only)
+# ---------------------------------------------------------------------------------------------
+
+"A Perpl account. Every account created since the start block is listed; only Trendr ones get activity. Id is the Perpl account id."
+type PerplAccount {
+  id: ID!
+  accountId: BigInt!
+  ownerAddress: String! @index
+  "Set when the owner is a Trendr account (passkey or bot)."
+  owner: Account
+  isTrendr: Boolean!
+  createdAt: BigInt!
+  createdBlock: Int!
+  "Latest collateral balance seen in Perpl events (CNS)."
+  balanceCns: BigInt!
+  deposited: BigInt!
+  withdrawn: BigInt!
+  orderForwarding: Boolean!
+  volume: BigInt!
+  feesPaid: BigInt!
+  realizedPnl: BigInt!
+  fillCount: Int!
+  fills: [PerplFill!]! @derivedFrom(field: "account")
+  positions: [PerplPosition!]! @derivedFrom(field: "account")
+}
+
+"A Perpl perpetual market. Id is the perp id."
+type PerplMarket {
+  id: ID!
+  perpId: BigInt!
+  name: String!
+  symbol: String!
+  priceDecimals: Int!
+  lotDecimals: Int!
+  "Trendr accounts' notional (CNS) and fills."
+  trendrVolume: BigInt!
+  trendrFillCount: Int!
+}
+
+type PerplFill {
+  id: ID!
+  account: PerplAccount!
+  owner: Account!
+  market: PerplMarket!
+  position: PerplPosition
+  role: PerplRole!
+  "What the fill did to the account's position."
+  action: PerplAction
+  isLong: Boolean
+  "Maker order id; null for taker fills."
+  orderId: BigInt
+  pricePns: BigInt!
+  price: BigDecimal!
+  lotLns: BigInt!
+  size: BigDecimal!
+  notionalCns: BigInt!
+  notionalAusd: BigDecimal!
+  feeCns: BigInt!
+  builderFeeCns: BigInt!
+  "Change of the account's collateral balance (CNS) and the balance after."
+  amountCns: BigInt!
+  balanceCns: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+"One Perpl position lifecycle, from open to close. Id is '<accountId>-<perpId>-<openBlock>-<openLogIndex>'."
+type PerplPosition {
+  id: ID!
+  account: PerplAccount!
+  owner: Account!
+  market: PerplMarket!
+  isLong: Boolean!
+  status: PositionStatus!
+  entryPricePns: BigInt!
+  entryPrice: BigDecimal!
+  lotLns: BigInt!
+  size: BigDecimal!
+  maxLotLns: BigInt!
+  depositCns: BigInt!
+  leverageHdths: BigInt!
+  "Sum of realized deltas and funding (funding is positive when received), CNS."
+  deltaPnlCns: BigInt!
+  fundingCns: BigInt!
+  feesCns: BigInt!
+  "deltaPnl + funding - fees, CNS."
+  realizedPnlCns: BigInt!
+  realizedPnlAusd: BigDecimal!
+  closePricePns: BigInt
+  openedAt: BigInt!
+  openedBlock: Int!
+  openTxHash: String!
+  closedAt: BigInt
+  closedBlock: Int
+  closeTxHash: String
+  "True once the closing fill's fee is booked and the round trip counted in AccountStats."
+  finalized: Boolean!
+  fills: [PerplFill!]! @derivedFrom(field: "position")
+}
+
+# ---------------------------------------------------------------------------------------------
+# Internal bookkeeping, not part of the API
+# ---------------------------------------------------------------------------------------------
+
+"Parameters of every market Kuru's Router registered, for markets recorded later in the same transaction."
+type KuruMarketRegistration @internal {
+  id: ID!
+  baseAsset: String!
+  quoteAsset: String!
+  vault: String!
+  pricePrecision: BigInt!
+  sizePrecision: BigInt!
+  tickSize: BigInt!
+  minSize: BigInt!
+  maxSize: BigInt!
+  takerFeeBps: Int!
+  makerFeeBps: Int!
+}
+
+"Routed Kuru fills waiting for the swap event that names their trader. Id is the transaction hash."
+type PendingRoute @internal {
+  id: ID!
+  fillIds: [String!]!
+}
+
+"The latest position event of a Trendr Perpl account, which names the account of the fill right after it. Id is 'cursor'."
+type PerplCursor @internal {
+  id: ID!
+  blockNumber: Int!
+  logIndex: Int!
+  accountId: String!
+  perpId: String!
+  positionId: String!
+  action: PerplAction!
+  isLong: Boolean!
+}
+
+"The open position of a Trendr Perpl account in one market. Id is '<accountId>-<perpId>'."
+type PerplOpenPosition @internal {
+  id: ID!
+  positionId: String!
+}
+
+"An account's round trip in one outcome series across both sides. Id is '<seriesId>-<account>'."
+type OutcomeCycle @internal {
+  id: ID!
+  open: Boolean!
+  pnl: BigInt!
+}

@@ -1,0 +1,177 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: trendr-indexer
+description: Trendr attention markets on Monad - trends, outcome series, Kuru books, attention perps, curves, curation and Trendr users' Perpl activity.
+
+# Entities and effect caches are keyed per chain, so Testnet and a later Mainnet never share rows.
+disable_default_cross_chain: true
+# The repo stores addresses as lowercase 0x hex; every id and address field follows that.
+address_format: lowercase
+storage:
+  postgres:
+    # The Trendr backend reads these tables with plain SQL, so columns are snake_case.
+    column_name_format: snake_case
+
+contracts:
+  - name: TrendRegistry
+    events:
+      - event: TrendCreated(bytes32 indexed id, string identifier, uint8 assetClass, address indexed surfacer, uint64 index, uint64 observedAt)
+      - event: IndexUpdated(bytes32 indexed id, uint64 index, uint64 peakIndex, uint64 observedAt, bool clamped)
+      - event: StatusChanged(bytes32 indexed id, uint8 from, uint8 to, uint64 at)
+      - event: SettlementFinalized(bytes32 indexed id, uint64 indexed expiry, uint64 value)
+      - event: ReportProcessed(uint64 indexed runId, uint64 observedAt, uint256 created, uint256 updated, uint256 settled, uint256 rejected)
+
+  - name: OutcomeMarkets
+    events:
+      - event: SeriesOpened(bytes32 indexed seriesId, bytes32 indexed trendId, uint32 window, uint64 openedAt, uint64 expiry, uint64 openingIndex, address up, address down)
+      - event: SetsMinted(bytes32 indexed seriesId, address indexed payer, address indexed to, uint256 amount)
+      - event: SetsRedeemed(bytes32 indexed seriesId, address indexed owner, address indexed to, uint256 amount)
+      - event: SeriesSettled(bytes32 indexed seriesId, uint8 outcome, uint64 openingIndex, uint64 settlementIndex)
+      - event: WinningsRedeemed(bytes32 indexed seriesId, address indexed owner, address indexed to, uint256 upAmount, uint256 downAmount, uint256 payout)
+
+  - name: OutcomeListing
+    events:
+      - event: MarketRecorded(bytes32 indexed seriesId, address indexed token, address market, bool deployed)
+
+  # Every UP and DOWN token and every trend coin, registered from SeriesOpened and CurveCreated.
+  - name: TrendrToken
+    events:
+      - event: Transfer(address indexed from, address indexed to, uint256 value)
+
+  - name: AttentionPerp
+    events:
+      - event: Poked(bytes32 indexed trendId, uint64 mark, int256 cumLong, int256 cumShort, uint64 blockNumber)
+      - event: PositionOpened(uint256 indexed id, address indexed owner, bytes32 indexed trendId, bool isLong, uint256 qty, uint256 margin, uint64 entryIndex, uint256 fee, address payer)
+      - event: MarginAdded(uint256 indexed id, address indexed payer, uint256 amount)
+      - event: PositionClosed(uint256 indexed id, address indexed owner, uint64 exitIndex, int256 pnl, int256 funding, uint256 fee, uint256 payout)
+      - event: PositionLiquidated(uint256 indexed id, address indexed liquidator, uint64 exitIndex, int256 equity, uint256 reward)
+      - event: SocializedLoss(uint256 indexed id, uint256 shortfall)
+      - event: PoolDeposit(address indexed from, uint256 amount)
+
+  - name: BondingCurve
+    events:
+      - event: CurveCreated(bytes32 indexed trendId, address coin, uint256 virtualQuote, uint64 peakAtCreation)
+      - event: Trade(bytes32 indexed trendId, address indexed trader, bool isBuy, uint256 quoteAmount, uint256 coinAmount, uint256 fee, uint256 reserve, uint256 sold)
+      - event: FloorRaised(bytes32 indexed trendId, uint256 virtualQuote, uint256 cost, uint256 ratchetBps)
+      - event: GraduationReady(bytes32 indexed trendId, uint256 reserve)
+      - event: Graduated(bytes32 indexed trendId, address indexed market, uint256 coinAmount, uint256 quoteAmount)
+
+  - name: KuruGraduationVenue
+    events:
+      - event: ListingPending(address indexed lister, address indexed base, address quote, uint256 baseAmount, uint256 quoteAmount)
+      - event: Listed(address indexed lister, address indexed base, address quote, address market, address vault, uint256 baseAmount, uint256 quoteAmount, uint256 shares)
+
+  - name: CurationFees
+    events:
+      - event: Accrued(bytes32 indexed trendId, address indexed surfacer, address indexed source, uint256 amount)
+      - event: Claimed(address indexed account, address indexed to, uint256 amount)
+
+  - name: TrendrSpot
+    events:
+      - event: Swapped(address indexed trader, address indexed token, address indexed market, bool isBuy, uint256 amountIn, uint256 amountOut, address to)
+
+  # Kuru's Router: market parameters for every market it deploys, and routed swaps.
+  - name: KuruRouter
+    events:
+      - event: MarketRegistered(address baseAsset, address quoteAsset, address market, address vaultAddress, uint32 pricePrecision, uint96 sizePrecision, uint32 tickSize, uint96 minSize, uint96 maxSize, uint256 takerFeeBps, uint256 makerFeeBps, uint96 kuruAmmSpread)
+      - event: KuruRouterSwap(address msgSender, address debitToken, address creditToken, uint256 amountIn, uint256 amountOut)
+
+  # Kuru order books of Trendr tokens, registered from OutcomeListing and the graduation venue.
+  # Signatures checked against live Testnet logs (Kuru-Labs/Kuru-contracts-dex-public IOrderBook).
+  - name: KuruOrderBook
+    events:
+      - event: Trade(uint40 orderId, address makerAddress, bool isBuy, uint256 price, uint96 updatedSize, address takerAddress, address txOrigin, uint96 filledSize)
+      - event: OrderCreated(uint40 orderId, address owner, uint96 size, uint32 price, bool isBuy)
+      - event: OrderCanceled(uint40 orderId, address owner, uint32 price, uint96 size, bool isBuy)
+      - event: OrdersCanceled(uint40[] orderId, address owner)
+
+  # EIP-7702 delegated code: any EOA running PasskeyAccount emits this once, so it is indexed by wildcard.
+  - name: PasskeyAccount
+    events:
+      - event: Initialized(bytes32 ownerX, bytes32 ownerY)
+
+  # Perpl's Exchange. Only Trendr accounts are kept; handlers drop everyone else after one lookup.
+  # The deployed Exchange emits V2 order fill and opening events and V1 decrease and close events.
+  - name: PerplExchange
+    events:
+      - event: AccountCreated(address account, uint256 id)
+      - event: CollateralDeposit(uint256 accountId, uint256 amountCNS, uint256 balanceCNS)
+      - event: CollateralWithdrawal(uint256 accountId, uint256 amountCNS, uint256 balanceCNS)
+      - event: OrderForwardingUpdated(uint256 accountId, bool allowed)
+      - event: MakerOrderFilledV2(uint256 perpId, uint256 accountId, uint256 orderId, uint256 pricePNS, uint256 lotLNS, uint256 feeCNS, uint256 lockedBalanceCNS, int256 amountCNS, uint256 balanceCNS, uint256 builderId, uint256 builderFeeCNS)
+      - event: TakerOrderFilledV2(uint256 entryPricePNS, uint256 collatPricePNS, uint256 pnlPricePNS, uint256 lotLNS, uint256 feeCNS, int256 amountCNS, uint256 balanceCNS, uint256 builderId, uint256 builderFeeCNS)
+      - event: PositionOpenedV2(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 depositCNS, int256 pnlCollateralizedCNS, uint256 pricePNS, uint256 lotLNS, uint256 insFeeCNS, uint256 protFeeCNS, uint256 priceResiduePNSQ16)
+      - event: PositionIncreasedV2(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 startDepositCNS, uint256 endDepositCNS, int256 pnlCollateralizedCNS, int256 premiumPnlSettledCNS, uint256 maxNegPnlCollatBPS, uint256 pricePNS, uint256 startLotLNS, uint256 endLotLNS, uint256 insFeeCNS, uint256 protFeeCNS, uint256 priceResiduePNSQ16)
+      - event: PositionDecreased(uint256 perpId, uint256 accountId, uint8 positionType, uint256 startDepositCNS, uint256 endDepositCNS, uint256 startLotLNS, uint256 endLotLNS, int256 deltaPnlCNS, int256 fundingCNS)
+      - event: PositionClosed(uint256 perpId, uint256 accountId, uint8 positionType, uint256 pricePNS, int256 deltaPnlCNS, int256 fundingCNS)
+      - event: PositionInverted(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 startDepositCNS, uint256 endDepositCNS, int256 pnlCollateralizedCNS, uint256 pricePNS, uint256 startLotLNS, uint256 endLotLNS, int256 deltaPnlCNS, int256 fundingCNS, uint256 insFeeCNS, uint256 protFeeCNS)
+      - event: PositionLiquidated(uint256 perpId, uint256 posAccountId, uint8 positionType, uint256 markPricePNS, uint256 liqPricePNS, uint256 liqLotLNS, uint256 posLotLNS, int256 deltaPnlCNS, int256 fundingCNS, int256 posAmountCNS, uint256 posDepositCNS, int256 accAmountCNS, uint256 accBalanceCNS, bool onOrderBook)
+      - event: PositionDeleveragedV2(uint256 perpId, uint256 accountId, bool forceClose, uint8 positionType, uint256 entryPricePNS, uint256 markPricePNS, uint256 deleveragePricePNS, int256 deltaPnlCNS, int256 fundingCNS, uint256 startDepositCNS, uint256 endDepositCNS, uint256 startLotLNS, uint256 endLotLNS, uint256 amountCNS, uint256 balanceCNS, uint256 priceResiduePNSQ16)
+
+chains:
+  # Monad Testnet. Addresses and the start block come from contracts/deployments/10143.json.
+  - id: 10143
+    # The deployment's first block by default, so every trend, series, account and market is known.
+    # A hosted indexer may start later (ENVIO_START_BLOCK_10143): anything
+    # created before that block is then unknown, and the events that refer to it are skipped.
+    # Envio keeps the block it started from; changing it later needs a resync (--restart).
+    start_block: ${ENVIO_START_BLOCK_10143:-69452198}
+    # HyperSync serves history and every gap; a plain RPC follows the head. Monad makes 2.5 blocks a
+    # second, and Envio polls once per partition per new block at the head, far more than a free
+    # HyperSync token's budget (15 requests a minute). Envio stays in realtime mode for good once a
+    # chain has caught up (ready_at), and unpatched it would then page every later gap (a restart, an
+    # outage) over this RPC: a few blocks per eth_getLogs plus a block read for nearly every block,
+    # since Perpl's Exchange logs in most of them, slower than the chain. patches/envio@3.14.0.patch
+    # sends any query more than 200 blocks behind the head to HyperSync (about 3,000 blocks a request
+    # through Perpl's volume) and keeps queries near the head off HyperSync.
+    # Following the head costs about 20 RPC requests a second (indexer/README.md, "Request volume").
+    # Envio fails over between these in order (no load sharing) when the head RPC stalls: Monad
+    # Foundation's endpoint, then a last resort (ENVIO_RPC_LAST_RESORT_URL_10143, by default Ankr's
+    # keyless endpoint).
+    # eth_getLogs range caps measured on 2026-10-13: Alchemy free 10 blocks, Monad's public RPC,
+    # monadinfra, Ankr's keyless endpoint and Chainstack 100, QuickNode and Ankr with a key 1,000.
+    # 100 suits the defaults and any provider whose cap is at least 100 blocks.
+    rpc:
+      - url: ${ENVIO_RPC_URL_10143:-https://testnet-rpc.monad.xyz}
+        for: realtime
+        interval_ceiling: 100
+      - url: ${ENVIO_RPC_FALLBACK_URL_10143:-https://rpc-testnet.monadinfra.com}
+        for: fallback
+        interval_ceiling: 100
+      - url: ${ENVIO_RPC_LAST_RESORT_URL_10143:-https://rpc.ankr.com/monad_testnet}
+        for: fallback
+        interval_ceiling: 100
+    contracts:
+      - name: TrendRegistry
+        address: "0xa24F779B6ae73bD7d6d1a2fE47B9EF9EA7bD805c"
+      - name: OutcomeMarkets
+        address:
+          - "0x8eaa2Dd6B3890Ead77BA9f555378eD11310C3EBF"
+          # The previous deployment; it still holds series that settle.
+          - "0xAA875b308669Dd8ed64044DD48F2286E939b54C2"
+      - name: OutcomeListing
+        address: "0x774AffCB8f4B095100B3C46bF562214BF30e9E7E"
+      - name: TrendrToken
+      - name: AttentionPerp
+        address: "0xeEC85F72e63EE5DAF66d285182241244110E0C84"
+      - name: BondingCurve
+        address: "0x597e4ad49b2430Ed8D4543eb46f94189231534DF"
+      - name: KuruGraduationVenue
+        address: "0x7D9e0b3145882e513Ee24D912DB1f4479DDBC7d3"
+      - name: CurationFees
+        address: "0x529d9B1e685BD943053Dc356D40a368639646168"
+      - name: TrendrSpot
+        address:
+          - "0x8daBA0D411D3530819B5FD1520A79050c0FEb374"
+          # The previous deployment, before session trades kept to the attention-implied band.
+          - "0x0824e10847a4bBFfFCb255A1770995A1CfB0a780"
+      - name: KuruRouter
+        address: "0x7EFbE105Ca7415dE98F96622173458ac1c054630"
+      - name: KuruOrderBook
+      - name: PasskeyAccount
+      - name: PerplExchange
+        address: "0x1964C32f0bE608E7D29302AFF5E61268E72080cc"
+
+  # Monad Mainnet (143) is not deployed yet. Once contracts/deployments/143.json exists, add a chain
+  # entry like the one above with its addresses and start block, a realtime RPC from
+  # ENVIO_RPC_URL_143, the Kuru Router and Perpl's Exchange (0x34B6552d57a35a1D042CcAe1951BD1C370112a6F),
+  # and add a 143 entry to CHAINS in src/lib/constants.ts.
