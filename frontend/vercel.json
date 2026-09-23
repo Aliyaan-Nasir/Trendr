@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm ci && for p in autopilot contracts-ts perpl; do npm install --prefix ../packages/$p --include=dev --no-package-lock --no-audit --no-fund || exit 1; done"
+}
