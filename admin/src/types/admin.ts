@@ -1,0 +1,421 @@
+/** Shapes of the backend API (backend/src/api/app.ts). */
+
+/** `retired`: the trend faded on chain (retired after cooling) and left the queue. */
+export const CANDIDATE_STATUSES = ["pending", "approved", "rejected", "live", "retired"] as const;
+export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number];
+
+export const ASSET_CLASSES = ["crypto", "equity", "commodity", "fx", "person", "politics", "topic"] as const;
+export type AssetClass = (typeof ASSET_CLASSES)[number];
+
+export type CandidateSource =
+  | "elfa_trending"
+  | "elfa_narrative"
+  | "wikipedia_top"
+  | "bluesky_trend"
+  | "coingecko_trending"
+  | "geckoterminal_trending"
+  | "link"
+  | "seed"
+  | "manual";
+
+export interface CandidateAi {
+  reason?: string;
+  policyFlags?: string[];
+  trendWorthy?: boolean;
+  duplicateOf?: string | null;
+}
+
+/** An admin candidate, in the full form the admin endpoints return. */
+export interface Candidate {
+  id: number;
+  identifier: string;
+  displayName: string;
+  summary: string | null;
+  assetClass: AssetClass;
+  keywords: string[];
+  article: string | null;
+  ticker: string | null;
+  source: CandidateSource;
+  /** Credit the source's terms require next to its data (CoinGecko, GeckoTerminal), else null. */
+  attribution?: { text: string; url: string } | null;
+  surfacer: string;
+  status: CandidateStatus;
+  createdAt: string;
+  confidence: number;
+  ai: CandidateAi;
+  /** Links: { url, platform, title }. Radar: { signal: { kind, ... } }. */
+  sourceRef: Record<string, unknown>;
+  decidedBy: string | null;
+  updatedAt: string;
+}
+
+export interface DecisionRequest {
+  decision: "approve" | "reject";
+  identifier?: string;
+  displayName?: string;
+  keywords?: string[];
+  article?: string | null;
+  summary?: string;
+}
+
+export interface RpcProviderHealth {
+  provider: string;
+  requests: number;
+  failures: number;
+  healthy: boolean;
+}
+
+export interface ChainHealth {
+  chainId: number;
+  trends: number;
+  live: number;
+  /** The CRE workflow's last run id, which is the run's unix time in seconds. */
+  lastRunId: number;
+  rpc: RpcProviderHealth[];
+}
+
+export interface KeyBudget {
+  keys: number;
+  leftToday: number;
+}
+
+export interface JobHealth {
+  job: string;
+  lastOkAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  lastReport: Record<string, unknown> | null;
+}
+
+export interface Health {
+  ok: boolean;
+  /** "ok", or the database error. */
+  db: string;
+  /** The chain summary, or the error that stopped it. */
+  chain: ChainHealth | string;
+  /** `ai`: the day's AI provider calls the radar and pasted links share (older backends omit it). */
+  budgets: { elfa: KeyBudget | null; nansen: KeyBudget | null; ai?: KeyBudget | null };
+  /** Provider names in fallback order. */
+  ai: string[];
+  gdelt: "ok" | "resting";
+  jobs: JobHealth[];
+}
+
+/** Jobs the admin API can start by hand. */
+export const JOB_NAMES = ["radar", "collector", "history"] as const;
+export type JobName = (typeof JOB_NAMES)[number];
+
+export interface Trend {
+  id: string;
+  identifier: string;
+  displayName: string | null;
+  assetClass: AssetClass;
+  status: string;
+  index: number;
+  peakIndex: number;
+  updatedAt: number;
+}
+
+export interface TrendsResponse {
+  lastRunId: number;
+  trends: Trend[];
+}
+
+/** A wallet a service sends from (GET /v1/admin/services). */
+export interface ServiceWallet {
+  label: string;
+  address: string;
+  /** MON as a decimal string; null when the service did not say. */
+  mon: string | null;
+}
+
+export interface TopupTarget {
+  name: string;
+  address: string;
+  balanceMon: string;
+  minMon: string;
+  targetMon: string;
+  /** "ok", "due", "capped", "halted", ... as the top-up service reports it. */
+  state: string;
+  /** MON burned over the last day; null until a day of history exists (older backends omit it). */
+  burnPerDayMon?: string | null;
+  lastTransfer: { hash: string | null; amountMon: string; at: number; status: string } | null;
+}
+
+export interface Treasury {
+  address: string;
+  balanceMon: string;
+  floorMon: string;
+  spendableMon: string;
+  /** MON burned over the last day; null until a day of history exists. */
+  burnPerDayMon: string | null;
+  runwayDays: number | null;
+  targets: TopupTarget[];
+}
+
+export interface ServiceDetail {
+  name: string;
+  ok: boolean;
+  latencyMs: number | null;
+  httpStatus: number | null;
+  lastError: string | null;
+  alerts: string[];
+  wallets: ServiceWallet[];
+  treasury: Treasury | null;
+}
+
+/** One Mainnet waitlist signup (backend/src/waitlist/routes.ts). */
+export interface WaitlistRow {
+  id: number;
+  email: string;
+  source: "app" | "landing";
+  /** The Trendr account linked in the app, lowercase. */
+  account: string | null;
+  createdAt: string;
+  updatedAt: string;
+  invitedAt: string | null;
+  unsubscribedAt: string | null;
+}
+
+/** A page of the waitlist, newest first, with counts over the whole list (`matching`: the search). */
+export interface WaitlistPage {
+  total: number;
+  invited: number;
+  linked: number;
+  matching: number;
+  limit: number;
+  offset: number;
+  rows: WaitlistRow[];
+}
+
+/** The admin system view (GET /v1/admin/system, backend/src/system.ts). Times are unix milliseconds. */
+export type Severity = "critical" | "warning" | "info";
+export type SystemArea = "database" | "chain" | "services" | "oracle" | "indexer" | "rpc" | "elfa" | "wallets" | "ai" | "jobs" | "sources" | "freshness";
+
+export interface Problem {
+  severity: Severity;
+  area: SystemArea;
+  title: string;
+  detail?: string;
+}
+
+/** One line of a service's health: a value, or a time shown as an age. */
+export interface Fact {
+  label: string;
+  value?: string;
+  at?: number;
+  tone?: "ok" | "warn" | "bad" | "neutral";
+}
+
+export interface RpcEndpoint {
+  provider: string;
+  requests: number;
+  failures: number;
+  healthy: boolean;
+}
+
+export type ServiceState = "up" | "degraded" | "down";
+
+export interface ServiceReport {
+  name: string;
+  state: ServiceState;
+  core: boolean;
+  httpStatus: number | null;
+  latencyMs: number | null;
+  lastSuccessAt: number | null;
+  lastError: string | null;
+  alerts: string[];
+  facts: Fact[];
+  wallets: ServiceWallet[];
+  rpc: RpcEndpoint[];
+  reason: string | null;
+  /** Read by the backend itself (backend, oracle, indexer), not from a health endpoint. */
+  derived: boolean;
+}
+
+export interface GatewayProvider {
+  provider: string;
+  healthy: boolean;
+  reserve: boolean;
+  requests: number;
+  ok: number;
+  errors: number;
+  rateLimited: number;
+  timeouts: number;
+  refused: number;
+  avgLatencyMs: number | null;
+  units: number;
+  monthlyUnits: number | null;
+  projectedMonthUnits: number | null;
+  budgetPct: number | null;
+  headLag: number | null;
+  lastError: string | null;
+  lastErrorAt: number | null;
+}
+
+export interface RpcGatewayReport {
+  ok: boolean;
+  head: number | null;
+  headAgeMs: number | null;
+  uptimeSec: number | null;
+  receivedPerSec: number | null;
+  upstreamPerSec: number | null;
+  failures: number | null;
+  clients: Record<string, number>;
+  providers: GatewayProvider[];
+}
+
+export type ElfaKeyState = "ok" | "idle" | "rejected" | "rate-limited" | "quota" | "route-down" | "route-auth" | "error";
+
+export interface ElfaKeyReport {
+  index: number;
+  /** The key's last four characters. */
+  key: string;
+  /** The key's route, host and port. */
+  route: string;
+  state: ElfaKeyState;
+  benchedUntil: number | null;
+  usedToday: number;
+  usedMonth: number;
+  allowanceToday: number;
+  leftToday: number;
+  projectedMonth: number;
+  requests: number;
+  failures: number;
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastError: string | null;
+  lastStatus: number | null;
+  plan: string | null;
+  narratives: boolean;
+  busy: boolean;
+}
+
+export interface ElfaKeyCheck {
+  index: number;
+  key: string;
+  route: string;
+  outcome: "ok" | "rejected" | "quota" | "throttled" | "route-down" | "route-auth" | "plan" | "error";
+  status: number | null;
+  plan: string | null;
+  free: boolean | null;
+  usedThisMonth: number | null;
+  monthlyLimit: number | null;
+  remaining: number | null;
+  error: string | null;
+}
+
+export interface ElfaReport {
+  configured: boolean;
+  keys: ElfaKeyReport[];
+  skipped: string[];
+  unusedRoutes: string[];
+  limits: { dailyPerKey: number; monthlyPerKey: number };
+  totals: { usedToday: number; usedMonth: number; allowanceToday: number; leftToday: number; monthly: number };
+  narrativesAvailable: boolean;
+  fallback: { capBytes: number; bytes: number; requests: number; month: string; pct: number } | null;
+  lastCheck: { at: number; running: boolean; total: number; results: ElfaKeyCheck[] } | null;
+}
+
+export type SourceState = "ok" | "idle" | "resting" | "failing" | "off";
+
+export interface SourceReport {
+  name: string;
+  label: string;
+  state: SourceState;
+  requests: number;
+  ok: number;
+  errors: number;
+  rateLimited: number;
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastError: string | null;
+  newestReadingAt: number | null;
+  readingsLastHour: number | null;
+  staleReadings: boolean;
+  note: string | null;
+}
+
+export interface AiProviderReport {
+  name: string;
+  requests: number;
+  ok: number;
+  failures: number;
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastError: string | null;
+  benchedUntil: number | null;
+  state: SourceState;
+}
+
+export interface JobReport {
+  job: string;
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastError: string | null;
+  intervalSec: number | null;
+  state: "ok" | "failing" | "stale" | "never";
+}
+
+export interface WalletRow {
+  name: string;
+  address: string;
+  balanceMon: string | null;
+  minMon: string | null;
+  targetMon: string | null;
+  burnPerDayMon: string | null;
+  state: string | null;
+  lastError: string | null;
+  from: "topup" | "service";
+}
+
+export interface RecentError {
+  source: string;
+  message: string;
+  count: number;
+  firstSeenAt: number;
+  lastSeenAt: number;
+}
+
+export interface SystemReport {
+  at: number;
+  status: "ok" | "degraded" | "critical";
+  problems: Problem[];
+  database: { ok: boolean; latencyMs: number | null; error: string | null };
+  chain: { ok: boolean; chainId: number; head: number | null; headAt: number | null; headAgeSec: number | null; error: string | null };
+  indexer: {
+    configured: boolean;
+    ok: boolean;
+    progressBlock: number | null;
+    sourceBlock: number | null;
+    lagBlocks: number | null;
+    lagSec: number | null;
+    eventsProcessed: number | null;
+    eventsPerMin: number | null;
+    readyAt: number | null;
+    error: string | null;
+  };
+  oracle: {
+    ok: boolean;
+    lastRunAt: number | null;
+    lastRunAgeSec: number | null;
+    staleAfterSec: number;
+    liveTrends: number | null;
+    totalTrends: number | null;
+    staleTrends: number | null;
+    oldestUpdateAgeSec: number | null;
+    retireWindowSec: number | null;
+    lastIndexedRun: { runId: number; created: number; updated: number; settled: number; rejected: number; at: number } | null;
+    lastSettlementAt: number | null;
+    settlements24h: number | null;
+    error: string | null;
+  };
+  services: ServiceReport[];
+  rpc: { gateway: RpcGatewayReport | null; services: Array<{ service: string; endpoints: RpcEndpoint[] }> };
+  elfa: ElfaReport;
+  sources: SourceReport[];
+  ai: { providers: AiProviderReport[]; leftToday: number | null; dailyCalls: number };
+  jobs: JobReport[];
+  wallets: { treasury: Treasury | null; rows: WalletRow[] };
+  errors: RecentError[];
+}
