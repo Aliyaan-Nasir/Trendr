@@ -59,6 +59,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - uses: ./.github/actions/install-packages
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.1
