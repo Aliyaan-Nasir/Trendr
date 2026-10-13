@@ -1,0 +1,39 @@
+name: market-maker
+
+on:
+  push:
+    paths: ["apps/market-maker/**", "packages/contracts-ts/**", "packages/chain/**", ".github/workflows/market-maker.yml"]
+  pull_request:
+    paths: ["apps/market-maker/**", "packages/contracts-ts/**", "packages/chain/**", ".github/workflows/market-maker.yml"]
+  workflow_dispatch:
+    inputs:
+      fork:
+        description: "Also run the Monad Testnet fork test against the live deployment"
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install
+        working-directory: apps/market-maker
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: apps/market-maker
+        run: bunx tsc --noEmit
+      - name: Unit tests
+        working-directory: apps/market-maker
+        run: bun run test
+      - uses: foundry-rs/foundry-toolchain@v1
+        if: ${{ inputs.fork }}
+        with:
+          version: v1.8.1
+      - name: Fork test against Monad Testnet and Kuru
+        if: ${{ inputs.fork }}
+        working-directory: apps/market-maker
+        run: bun run test:fork

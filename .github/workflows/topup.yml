@@ -1,0 +1,53 @@
+name: topup
+
+on:
+  push:
+    paths: ["apps/topup/**", "packages/chain/**", ".github/workflows/topup.yml"]
+  pull_request:
+    paths: ["apps/topup/**", "packages/chain/**", ".github/workflows/topup.yml"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trendr
+          POSTGRES_PASSWORD: trendr
+          POSTGRES_DB: trendr_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trendr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://trendr:trendr@localhost:5432/trendr_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Shared chain package (sender, alerts)
+        working-directory: packages/chain
+        run: |
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+          bun test
+      - name: Install
+        working-directory: apps/topup
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: apps/topup
+        run: bunx tsc --noEmit
+      - name: Unit tests (with the Postgres store)
+        working-directory: apps/topup
+        run: bun run test
+      - name: End to end on Anvil (refills, EIP-7702 target, low-treasury alerts)
+        working-directory: apps/topup
+        run: bun run test:e2e

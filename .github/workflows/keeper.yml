@@ -1,0 +1,34 @@
+name: keeper
+
+on:
+  push:
+    paths: ["apps/keeper/**", "packages/contracts-ts/**", "packages/chain/**", "contracts/src/**", "contracts/script/**", ".github/workflows/keeper.yml"]
+  pull_request:
+    paths: ["apps/keeper/**", "packages/contracts-ts/**", "packages/chain/**", "contracts/src/**", "contracts/script/**", ".github/workflows/keeper.yml"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Install
+        working-directory: apps/keeper
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: apps/keeper
+        run: bunx tsc --noEmit
+      - name: Unit tests
+        working-directory: apps/keeper
+        run: bun run test
+      - name: End to end on Anvil
+        working-directory: apps/keeper
+        run: bun run test:e2e
