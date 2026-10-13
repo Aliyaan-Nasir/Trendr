@@ -1,16 +1,28 @@
+<div align="center">
+
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="assets/readme/hero-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-light.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/hero-dark.png">
   <img src="assets/readme/hero-light.png" width="960" alt="Trendr: trade what the world is talking about. An attention index card reads 72.40, up 8.6% in 24 hours, with UP at 0.64 and DOWN at 0.36 AUSD.">
 </picture>
 
-**Trendr turns what the internet is talking about into markets you can trade from your phone, on Monad.**
+### Trendr turns what the internet is talking about into markets you can trade from your phone, on Monad.
 
-**Technical demo:** [link] · **Pitch demo:** [link] · **Website:** [trendr.bid](https://trendr.bid) · **App:** [app.trendr.bid](https://app.trendr.bid) · **X:** [@trendrnow](https://x.com/trendrnow) · **Contracts:** [Monadscan](#deployed-contracts-on-monad-testnet)
+<a href="https://trendr.bid"><img src="https://img.shields.io/badge/Website-trendr.bid-6E54FF?style=for-the-badge" alt="Website"></a> <a href="https://app.trendr.bid"><img src="https://img.shields.io/badge/Launch%20app-app.trendr.bid-836EF9?style=for-the-badge" alt="Launch app"></a> <a href="https://x.com/trendrnow"><img src="https://img.shields.io/badge/X-@trendrnow-6E7681?style=for-the-badge&logo=x&logoColor=white" alt="X"></a> <a href="#deployed-contracts-on-monad-testnet"><img src="https://img.shields.io/badge/Contracts-Monadscan-4C4496?style=for-the-badge" alt="Contracts"></a>
 
-Built for Monad Metropolis, Track 01.
+<img src="https://img.shields.io/badge/Monad-Testnet%20live-6E54FF?style=flat-square" alt="Monad Testnet live"> <img src="https://img.shields.io/badge/contracts-verified-2EA043?style=flat-square" alt="Contracts verified"> <img src="https://img.shields.io/badge/Mainnet-waitlist%20open-D29922?style=flat-square" alt="Mainnet waitlist open"> <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-3DA639?style=flat-square" alt="MIT license"></a>
 
-## What it is
+<img src="https://img.shields.io/badge/Solidity-5E5E5E?style=flat-square&logo=solidity&logoColor=white" alt="Solidity"> <img src="https://img.shields.io/badge/Foundry-6E7681?style=flat-square" alt="Foundry"> <img src="https://img.shields.io/badge/Chainlink%20CRE-375BD2?style=flat-square&logo=chainlink&logoColor=white" alt="Chainlink CRE"> <img src="https://img.shields.io/badge/Next.js-555555?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js"> <img src="https://img.shields.io/badge/Bun-F9F1E1?style=flat-square&logo=bun&logoColor=black" alt="Bun"> <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL"> <img src="https://img.shields.io/badge/Envio-FF5A1F?style=flat-square" alt="Envio"> <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+
+<sub>Built for Monad Metropolis, Track 01</sub>
+
+<a href="#what-is-trendr">Overview</a> · <a href="#features">Features</a> · <a href="#how-it-works">How it works</a> · <a href="#deployed-contracts-on-monad-testnet">Contracts</a> · <a href="#bounty-tracks">Bounty tracks</a> · <a href="#run-it-locally">Run it locally</a> · <a href="#tests">Tests</a>
+
+</div>
+
+<!-- Demo videos: add the technical and pitch demo buttons here once the links exist. -->
+
+## What is Trendr
 
 A radar watches X, Telegram, Bluesky, CoinGecko, GeckoTerminal and Wikipedia for topics that are taking off, and an AI review plus a human admin decide which become trends.
 A Chainlink CRE workflow measures each trend's attention from Elfa, GDELT, Wikipedia, Nansen, Bluesky and Hacker News and writes a 0 to 100 attention index to Monad.
@@ -21,27 +33,26 @@ Mainnet is next: the app and the website collect emails for its launch and beta 
 
 ## Features
 
-**Trade attention**
-- **Up/Down series on Kuru**: fully collateralized UP and DOWN tokens per trend for 24 hours and 7 days, each with one canonical Kuru order book against AUSD; a complete set always redeems for 1 AUSD.
-- **Attention perps**: isolated-margin perps on the index itself, up to 3x, with per-block funding from long/short skew.
-- **Trend coins**: one coin per trend on a constant-product bonding curve whose floor ratchets with peak attention, graduating to its own Kuru market.
-- **Perpl perps**: trade the asset behind a trend (BTC, ETH, SOL, MON and more) on Perpl from the same account.
-
-**Automate and follow**
-- **Autopilot**: rules like "attention up 40% in 4 hours and smart money buying, go long 3x" that open Perpl positions with stop-loss, take-profit and loss limits, backtested on the real index history.
-- **Copy-trading**: follow Perpl leaders with ratio or fixed margin, a leverage cap, a daily loss cap and slippage protection.
-
-**Social**
-- **Calls**: public Up or Down predictions on a trend, signed by a caller identity that stays unlinkable from the trading account, ranked by hit rate on a leaderboard.
-- **Curation reward**: the account that first surfaced a trend earns a share of its perp and curve fees, on chain in `CurationFees`.
-- **Share cards**: images for calls and for PnL, where attention-perp results are verified from the on-chain close event.
-
-**Account and phone**
-- **Mera passkeys**: one passkey derives the account, its trading session key, a caller identity, a vault key and a Perpl API key.
-- **Gas-free**: a relayer pays for every allowlisted Trendr call.
-- **PWA and push**: installable, with Web Push for Autopilot and copy-trading activity, calls and markets.
-- **Any-chain deposits**: Aurora Intents brings value from about 35 chains into AUSD (Mainnet, see [docs/aurora.md](docs/aurora.md)).
-- **Mainnet waitlist**: an email form in the app and on the website; nothing is sent until Mainnet launches.
+| Feature | What it does |
+|---|---|
+| <sub>**TRADE&nbsp;ATTENTION**</sub> | |
+| **Up/Down series on Kuru** | Fully collateralized UP and DOWN tokens per trend for 24 hours and 7 days, each with one canonical Kuru order book against AUSD; a complete set always redeems for 1 AUSD. |
+| **Attention perps** | Isolated-margin perps on the index itself, up to 3x, with per-block funding from long/short skew. |
+| **Trend coins** | One coin per trend on a constant-product bonding curve whose floor ratchets with peak attention, graduating to its own Kuru market. |
+| **Perpl perps** | Trade the asset behind a trend (BTC, ETH, SOL, MON and more) on Perpl from the same account. |
+| <sub>**AUTOMATE&nbsp;AND&nbsp;FOLLOW**</sub> | |
+| **Autopilot** | Rules like "attention up 40% in 4 hours and smart money buying, go long 3x" that open Perpl positions with stop-loss, take-profit and loss limits, backtested on the real index history. |
+| **Copy&#8209;trading** | Follow Perpl leaders with ratio or fixed margin, a leverage cap, a daily loss cap and slippage protection. |
+| <sub>**SOCIAL**</sub> | |
+| **Calls** | Public Up or Down predictions on a trend, signed by a caller identity that stays unlinkable from the trading account, ranked by hit rate on a leaderboard. |
+| **Curation reward** | The account that first surfaced a trend earns a share of its perp and curve fees, on chain in `CurationFees`. |
+| **Share cards** | Images for calls and for PnL, where attention-perp results are verified from the on-chain close event. |
+| <sub>**ACCOUNT&nbsp;AND&nbsp;PHONE**</sub> | |
+| **Mera passkeys** | One passkey derives the account, its trading session key, a caller identity, a vault key and a Perpl API key. |
+| **Gas-free** | A relayer pays for every allowlisted Trendr call. |
+| **PWA and push** | Installable, with Web Push for Autopilot and copy-trading activity, calls and markets. |
+| **Any&#8209;chain deposits** | Aurora Intents brings value from about 35 chains into AUSD (Mainnet, see [docs/aurora.md](docs/aurora.md)). |
+| **Mainnet waitlist** | An email form in the app and on the website; nothing is sent until Mainnet launches. |
 
 ## How it works
 
@@ -118,26 +129,30 @@ Every Trendr contract is verified on Monadscan and Sourcify, ownerless and non-u
 
 ## Tech stack
 
-- **Chain**: Monad (Testnet 10143, Mainnet 143), AUSD settlement, EIP-7702 accounts with the P256 precompile.
-- **Contracts**: Solidity 0.8.30, Foundry, OpenZeppelin, Slither.
-- **Oracle**: Chainlink CRE TypeScript SDK (QuickJS WASM), Bun.
-- **App and admin**: Next.js 16, React 19, Tailwind CSS 4, viem, Mera passkeys, Lightweight Charts.
-- **Landing page**: Next.js 15.
-- **Backend and services**: Bun, Hono, viem, Postgres, zod.
-- **Indexer**: Envio HyperIndex, HyperSync for history and RPC at the head.
-- **Hosting (planned)**: Railway for services, Vercel for apps.
+| Layer | Tools |
+|---|---|
+| **Chain** | Monad (Testnet 10143, Mainnet 143), AUSD settlement, EIP-7702 accounts with the P256 precompile |
+| **Contracts** | Solidity 0.8.30, Foundry, OpenZeppelin, Slither |
+| **Oracle** | Chainlink CRE TypeScript SDK (QuickJS WASM), Bun |
+| **App and admin** | Next.js 16, React 19, Tailwind CSS 4, viem, Mera passkeys, Lightweight Charts |
+| **Landing page** | Next.js 15 |
+| **Backend and services** | Bun, Hono, viem, Postgres, zod |
+| **Indexer** | Envio HyperIndex, HyperSync for history and RPC at the head |
+| **Hosting (planned)** | Railway for services, Vercel for apps |
 
 ## Security model
 
-- **Guarded sessions**: a session key expires (7 days by default, at most 30 through the relayer) and can only call allowlisted targets and selectors, optionally with a pinned recipient.
-- **Price guards**: `TrendrSpot` refuses session trades more than 0.10 AUSD from the attention-implied value, and `PerplOrderGuard` refuses orders more than 2% from a Perpl mark older than two minutes, or above 10x.
-- **Gross daily limit**: every call's AUSD outflow counts against the session's daily limit, and inflows never offset it.
-- **Owner only**: withdrawals, adding margin, trend coins, limit orders, Perpl cancels, new sessions and Autopilot keys need the passkey, verified on chain.
-- **Owner approvals**: following a trader, enabling an Autopilot rule and linking a caller identity need a passkey signature over a single-use backend nonce.
-- **Activation tickets**: the relayer pays to activate a new account only with a backend-signed ticket, limited per IP and per hour.
-- **Relayer budgets**: gas per account per day, total gas per hour, activations per hour and a cooldown after repeated reverts.
-- **Autopilot keys**: a Perpl-only session key, sealed in the browser to the executor's public key; the API stores only ciphertext.
-- **Audits and tests**: Slither in CI (fails on medium), 32 planted mutations that the suite must catch, 5 invariant suites with 32 invariants and coverage reporting (`INVARIANT_COVERAGE=true`), and a nightly Mainnet fork rehearsal.
+| Guard | What it does |
+|---|---|
+| **Guarded sessions** | A session key expires (7 days by default, at most 30 through the relayer) and can only call allowlisted targets and selectors, optionally with a pinned recipient. |
+| **Price guards** | `TrendrSpot` refuses session trades more than 0.10 AUSD from the attention-implied value, and `PerplOrderGuard` refuses orders more than 2% from a Perpl mark older than two minutes, or above 10x. |
+| **Gross daily limit** | Every call's AUSD outflow counts against the session's daily limit, and inflows never offset it. |
+| **Owner only** | Withdrawals, adding margin, trend coins, limit orders, Perpl cancels, new sessions and Autopilot keys need the passkey, verified on chain. |
+| **Owner approvals** | Following a trader, enabling an Autopilot rule and linking a caller identity need a passkey signature over a single-use backend nonce. |
+| **Activation tickets** | The relayer pays to activate a new account only with a backend-signed ticket, limited per IP and per hour. |
+| **Relayer budgets** | Gas per account per day, total gas per hour, activations per hour and a cooldown after repeated reverts. |
+| **Autopilot keys** | A Perpl-only session key, sealed in the browser to the executor's public key; the API stores only ciphertext. |
+| **Audits and tests** | Slither in CI (fails on medium), 32 planted mutations that the suite must catch, 5 invariant suites with 32 invariants and coverage reporting (`INVARIANT_COVERAGE=true`), and a nightly Mainnet fork rehearsal. |
 
 ## Run it locally
 
@@ -182,7 +197,7 @@ Counted from a run of each suite on 2026-10-11, and on 2026-10-13 for the backen
 | Suite | Tests |
 |---|---|
 | contracts | 207 forge tests: unit, fuzz and invariants, plus 4 fork rehearsal tests (Testnet and Mainnet forks) and 32 planted mutations |
-| backend | 268 |
+| backend | 286 |
 | relayer | 82, plus 10 end-to-end on Anvil |
 | aurora | 99, plus 6 against live Aurora APIs |
 | CRE oracle | 73 |
@@ -206,23 +221,26 @@ Mainnet goes live one product at a time: contracts and the oracle first, then at
 
 ## Sources and credits
 
-- [Monad](https://www.monad.xyz): the chain.
-- [Chainlink CRE](https://docs.chain.link/cre): the attention index workflow.
-- [Kuru](https://www.kuru.io): order books for outcome tokens and graduated coins.
-- [Perpl](https://perpl.xyz): perpetuals and the trading API.
-- [Agora AUSD](https://www.agora.finance): settlement collateral.
-- [Aurora Intents](https://aurora.dev): any-chain deposits.
-- [Envio](https://envio.dev): the indexer.
-- [Mera](https://www.npmjs.com/package/@category-labs/mera): passkey accounts.
-- [Elfa AI](https://www.elfa.ai): mentions on X and Telegram, and trending topics.
-- [Wikimedia pageviews](https://wikitech.wikimedia.org/wiki/Data_Platform/AQS/Pageviews): article views and most-read lists.
-- [Nansen](https://www.nansen.ai): smart-money flows.
-- [GDELT](https://www.gdeltproject.org): worldwide news coverage.
-- [Bluesky](https://docs.bsky.app): posts and trending topics.
-- [Hacker News](https://hn.algolia.com/api) through Algolia's search API: stories and comments.
-- [CoinGecko](https://www.coingecko.com) and [GeckoTerminal](https://www.geckoterminal.com): most-searched coins and trending pools for the radar.
-- [Gemini](https://ai.google.dev), [OpenAI](https://platform.openai.com) and [Kimi](https://platform.moonshot.ai): candidate review.
-- Demo activity: a few project-owned Testnet accounts made test transactions so the markets, leaderboards and threads show the product in use.
+| Partner | Used for |
+|---|---|
+| [Monad](https://www.monad.xyz) | The chain |
+| [Chainlink CRE](https://docs.chain.link/cre) | The attention index workflow |
+| [Kuru](https://www.kuru.io) | Order books for outcome tokens and graduated coins |
+| [Perpl](https://perpl.xyz) | Perpetuals and the trading API |
+| [Agora AUSD](https://www.agora.finance) | Settlement collateral |
+| [Aurora Intents](https://aurora.dev) | Any-chain deposits |
+| [Envio](https://envio.dev) | The indexer |
+| [Mera](https://www.npmjs.com/package/@category-labs/mera) | Passkey accounts |
+| [Elfa](https://www.elfa.ai) | Mentions on X and Telegram, and trending topics |
+| [Wikimedia pageviews](https://wikitech.wikimedia.org/wiki/Data_Platform/AQS/Pageviews) | Article views and most-read lists |
+| [Nansen](https://www.nansen.ai) | Smart-money flows |
+| [GDELT](https://www.gdeltproject.org) | Worldwide news coverage |
+| [Bluesky](https://docs.bsky.app) | Posts and trending topics |
+| [Hacker News](https://hn.algolia.com/api) | Stories and comments, through Algolia's search API |
+| [CoinGecko](https://www.coingecko.com) and [GeckoTerminal](https://www.geckoterminal.com) | Most-searched coins and trending pools for the radar |
+| [Gemini](https://ai.google.dev), [OpenAI](https://platform.openai.com) and [Kimi](https://platform.moonshot.ai) | Candidate review |
+
+Demo activity: a few project-owned Testnet accounts made test transactions so the markets, leaderboards and threads show the product in use.
 
 Built by aliyaan.
 

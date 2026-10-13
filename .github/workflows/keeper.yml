@@ -17,6 +17,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - uses: ./.github/actions/install-packages
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.1
@@ -29,6 +30,9 @@ jobs:
       - name: Unit tests
         working-directory: apps/keeper
         run: bun run test
+      - name: Build contracts (tests deploy and read every artifact)
+        working-directory: contracts
+        run: forge build
       - name: End to end on Anvil
         working-directory: apps/keeper
         run: bun run test:e2e

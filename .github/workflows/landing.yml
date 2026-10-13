@@ -1,0 +1,34 @@
+name: landing
+
+on:
+  push:
+    paths: ["landing-page/**", ".github/workflows/landing.yml"]
+  pull_request:
+    paths: ["landing-page/**", ".github/workflows/landing.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: landing-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: landing-page
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build

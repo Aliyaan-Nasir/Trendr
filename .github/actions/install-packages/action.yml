@@ -1,0 +1,14 @@
+name: Install shared packages
+description: Installs each packages/* package's own dependencies. Bun resolves the local file packages at their real path, so a consumer's install alone leaves their imports unresolved.
+runs:
+  using: composite
+  steps:
+    - name: Install every shared package
+      shell: bash
+      run: |
+        for dir in packages/*/; do
+          [ -f "$dir/package.json" ] || continue
+          echo "::group::$dir"
+          (cd "$dir" && bun install --frozen-lockfile)
+          echo "::endgroup::"
+        done

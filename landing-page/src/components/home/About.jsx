@@ -395,14 +395,16 @@ export default function ClippedTextSection() {
             </div>
 
             {/* Description */}
-            <div className="flex justify-between items-end max-sm:flex-col max-sm:items-start max-sm:gap-[1.5vw]">
+            {/* The second label sits at the same place on every slide: the first column is as wide as the
+                longest category plus a gap, and the description keeps to one line at the right. */}
+            <div className="grid grid-cols-[11.5vw_auto_1fr] items-baseline max-sm:flex max-sm:flex-col max-sm:items-start max-sm:gap-[1.5vw]">
               <p className="text-[2vw] font-display about-slider-text max-sm:text-[4.5vw]">
                 {slides[currentSlide].category}
               </p>
               <p className="text-[2vw] font-display about-slider-text max-sm:text-[4.5vw]">
                 {slides[currentSlide].country}
               </p>
-              <p className="text-[1.3vw] text-gray-200 about-slider-text max-sm:text-[3.5vw] max-sm:leading-[1.3]">
+              <p className="justify-self-end whitespace-nowrap text-[1.2vw] text-gray-200 about-slider-text max-sm:justify-self-auto max-sm:whitespace-normal max-sm:text-[3.5vw] max-sm:leading-[1.3]">
                 {slides[currentSlide].description}
               </p>
             </div>
