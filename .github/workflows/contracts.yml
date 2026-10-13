@@ -1,0 +1,88 @@
+name: contracts
+
+on:
+  push:
+    paths: ["contracts/**", ".github/workflows/contracts.yml"]
+  pull_request:
+    paths: ["contracts/**", ".github/workflows/contracts.yml"]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: contracts
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Format
+        run: forge fmt --check
+      - name: Build
+        run: forge build --sizes
+      - name: Lint
+        run: forge lint
+      - name: Unit, fuzz and invariant tests
+        run: forge test
+        env:
+          FOUNDRY_PROFILE: ci
+      - name: Gas snapshot
+        run: forge snapshot --check --match-path 'test/unit/*' --no-match-test testFuzz
+
+  slither:
+    # Fails on medium and above. contracts/slither.config.json excludes detectors that only flag
+    # deliberate patterns here (time-based logic, zero-initialized locals, partial tuple reads,
+    # bounded loops); intentional medium findings are wrapped in slither-disable blocks with a reason.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: crytic/slither-action@v0.4.1
+        with:
+          target: contracts
+          slither-config: contracts/slither.config.json
+          fail-on: medium
+
+  fork:
+    # Talks to the public Monad Testnet RPC, so it runs nightly and on demand only.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Monad Testnet fork tests
+        run: forge test --match-path 'test/fork/*' -vv
+        env:
+          MONAD_FORK: "true"
+
+  mutations:
+    # Plants every bug in test/mutations/mutations.json and requires the invariants to catch it.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - run: forge build
+      - name: Planted bugs
+        run: python3 test/mutations/run.py

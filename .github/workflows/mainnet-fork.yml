@@ -1,0 +1,78 @@
+name: mainnet-fork
+
+# Nightly rehearsal against a fork of Monad Mainnet, so a change on Mainnet (Kuru, AUSD, the stable
+# pool, the CRE forwarders) or in Trendr that breaks the Mainnet plan shows up before the deploy:
+# - contracts/test/fork/MainnetRehearsal.fork.t.sol: the real Deploy script and the core flows.
+# - apps/relayer/test/e2e.mainnet-fork.test.ts: an Aurora deposit's USDC converted to AUSD through
+#   the relayer and a PasskeyAccount, against the real stable pool.
+# Forks only: nothing is ever sent to Mainnet. The RPC to fork comes from the MONAD_MAINNET_RPC_URL
+# repository secret (a provider URL with its key); without it the tests fall back to the public RPC,
+# which rate-limits. The Testnet fork suites run nightly in contracts.yml.
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      block:
+        description: "Mainnet block to fork (empty: the latest)"
+        required: false
+        default: ""
+
+concurrency:
+  group: mainnet-fork
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Mainnet rehearsal on a fork
+        env:
+          MONAD_MAINNET_FORK: "true"
+          MONAD_MAINNET_RPC_URL: ${{ secrets.MONAD_MAINNET_RPC_URL }}
+          FORK_BLOCK: ${{ inputs.block }}
+        run: |
+          if [ -n "$FORK_BLOCK" ]; then export MAINNET_FORK_BLOCK="$FORK_BLOCK"; fi
+          forge test --match-path 'test/fork/MainnetRehearsal.fork.t.sol' -vv
+
+  aurora-conversion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Build the contracts
+        working-directory: contracts
+        run: forge build
+      - name: Install
+        working-directory: apps/relayer
+        run: bun install --frozen-lockfile
+      - name: USDC to AUSD conversion on a Mainnet fork
+        working-directory: apps/relayer
+        env:
+          MONAD_MAINNET_RPC_URL: ${{ secrets.MONAD_MAINNET_RPC_URL }}
+          FORK_BLOCK: ${{ inputs.block }}
+        run: |
+          if [ -n "$FORK_BLOCK" ]; then export MAINNET_FORK_BLOCK="$FORK_BLOCK"; fi
+          bun run test:fork:mainnet
