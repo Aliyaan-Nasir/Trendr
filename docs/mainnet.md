@@ -63,7 +63,7 @@ The oracle, measured:
 | Keeper | about 0.05 MON (perp marks, retirements, liquidations) | about 3.9 MON (`openSeries` 3.4, `list` 0.3, `settle` 0.1) |
 | Market maker | nothing (it quotes only recorded markets) | about 12 MON at Testnet's settings, bounded by `MAX_SERIES`, `REQUOTE_TICKS` and `MIN_REQUOTE_SEC` |
 | Relayer keys | per use: 0.035 MON a sign-up, 0.043 a session mint, 0.068 a Kuru trade, 0.035 an Aurora conversion; at most 4.1 MON an hour by budget | same |
-| Autopilot bot | nothing with `BOT_VENUE=api` | nothing |
+| Autopilot bot | nothing with `BOT_VENUE=api`; the hosted bot runs `BOT_VENUE=chain`, because Perpl's trading API answers 451 from the hosting region, and pays MON gas for each order | nothing |
 | Before any user, mock mode | about 9.6 MON | about 26 MON |
 | Before any user, on Chainlink | about 0.05 MON | about 16 MON |
 
@@ -220,7 +220,7 @@ Monad also holds back part of each sender's balance as a reserve for in-flight g
 | Keeper | about 0.25 MON per `openSeries`; about 3.6 MON a day at twelve live trends (both windows, plus settlements) | 120 MON for a month |
 | Relayer keys | about 0.035 MON per activation, 0.04 to 0.07 MON per relayed trade | 25 MON each, three keys |
 | Market maker | about 0.04 MON per first order on a level; a re-quote `batchUpdate` (about 435k gas on Testnet) about 0.05 MON | 30 MON, plus 2,500 AUSD at default settings |
-| Autopilot bot | none with `BOT_VENUE=api` | AUSD collateral on Perpl for its rules |
+| Autopilot bot | none with `BOT_VENUE=api`; MON gas per order with `BOT_VENUE=chain`, the hosted setting (Perpl's trading API answers 451 from the hosting region) | AUSD collateral on Perpl for its rules, and MON for its orders with `BOT_VENUE=chain` |
 | Oracle broadcaster (mock mode) | about 9.5 MON a day at twelve live trends: 120 reports of 774,000 gas of limit | 100 MON, refilled by the topup service |
 | CRE (production) | paid by the DON under Chainlink's terms | nothing in MON |
 | Treasury | receives fees, sends nothing | a multisig, no MON |

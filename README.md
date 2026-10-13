@@ -6,7 +6,7 @@
   <img src="assets/readme/hero-light.png" width="960" alt="Trendr: trade what the world is talking about. An attention index card reads 72.40, up 8.6% in 24 hours, with UP at 0.64 and DOWN at 0.36 AUSD.">
 </picture>
 
-### Trendr turns what the internet is talking about into markets you can trade from your phone, on Monad.
+### Trendr turns what the internet is talking about into markets you can trade from any device, on Monad.
 
 <a href="https://trendr.bid"><img src="https://img.shields.io/badge/Website-trendr.bid-6E54FF?style=for-the-badge" alt="Website"></a> <a href="https://app.trendr.bid"><img src="https://img.shields.io/badge/Launch%20app-app.trendr.bid-836EF9?style=for-the-badge" alt="Launch app"></a> <a href="https://x.com/trendrnow"><img src="https://img.shields.io/badge/X-@trendrnow-6E7681?style=for-the-badge&logo=x&logoColor=white" alt="X"></a> <a href="#deployed-contracts-on-monad-testnet"><img src="https://img.shields.io/badge/Contracts-Monadscan-4C4496?style=for-the-badge" alt="Contracts"></a>
 
@@ -16,7 +16,7 @@
 
 <sub>Built for Monad Metropolis, Track 01</sub>
 
-<a href="#what-is-trendr">Overview</a> · <a href="#features">Features</a> · <a href="#how-it-works">How it works</a> · <a href="#deployed-contracts-on-monad-testnet">Contracts</a> · <a href="#bounty-tracks">Bounty tracks</a> · <a href="#run-it-locally">Run it locally</a> · <a href="#tests">Tests</a>
+<a href="#what-is-trendr">Overview</a> · <a href="#try-it">Try it</a> · <a href="#features">Features</a> · <a href="#how-it-works">How it works</a> · <a href="#deployed-contracts-on-monad-testnet">Contracts</a> · <a href="#mainnet-ready">Mainnet</a> · <a href="#run-it-locally">Run it locally</a> · <a href="#tests">Tests</a>
 
 </div>
 
@@ -24,12 +24,27 @@
 
 ## What is Trendr
 
-A radar watches X, Telegram, Bluesky, CoinGecko, GeckoTerminal and Wikipedia for topics that are taking off, and an AI review plus a human admin decide which become trends.
+A radar watches X, Telegram, Bluesky, CoinGecko, GeckoTerminal and Wikipedia for topics that are taking off, and an AI review decides automatically which become trends; only a flagged or borderline topic waits for a person.
 A Chainlink CRE workflow measures each trend's attention from Elfa, GDELT, Wikipedia, Nansen, Bluesky and Hacker News and writes a 0 to 100 attention index to Monad.
 Every trend then gets markets on that index: Up/Down outcome series on Kuru, attention perps and a trend coin on a bonding curve, next to Perpl perps on the underlying asset.
 Users sign up with a passkey, never see a seed phrase or a gas fee, and trade with one prompt a week thanks to guarded session keys.
-The contracts are live and verified on Monad Testnet, and the mobile-first PWA and its eight services run against them.
-Mainnet is next: the app and the website collect emails for its launch and beta on a waitlist.
+The contracts are live and verified on Monad Testnet, and the app, the website and every service behind them are hosted and running against them.
+
+## Try it
+
+| Where | Link |
+|---|---|
+| **App** | [app.trendr.bid](https://app.trendr.bid), on a phone, tablet or computer (Monad Testnet) |
+| **Website** | [trendr.bid](https://trendr.bid) |
+| **Status** | [app.trendr.bid/status](https://app.trendr.bid/status): the services, the oracle's freshness and the chain head |
+| **API** | [api.trendr.bid/v1/trends](https://api.trendr.bid/v1/trends): the live trends and their index |
+
+In about two minutes:
+
+1. Open the app and choose **Sign in**, then **Create account**: one passkey prompt creates the account and a week-long trading session, with no gas to pay.
+2. Choose **Add funds**, then **Get test AUSD** for Testnet AUSD from the faucet.
+3. Open any trend and buy **Up** or **Down**, open an attention perp, or buy its trend coin; each trade confirms in about a second with a Monadscan link.
+4. Watch **Portfolio** value the positions live, post a call on the trend, or set up an **Autopilot** rule and backtest it.
 
 ## Features
 
@@ -47,14 +62,16 @@ Mainnet is next: the app and the website collect emails for its launch and beta 
 | **Calls** | Public Up or Down predictions on a trend, signed by a caller identity that stays unlinkable from the trading account, ranked by hit rate on a leaderboard. |
 | **Curation reward** | The account that first surfaced a trend earns a share of its perp and curve fees, on chain in `CurationFees`. |
 | **Share cards** | Images for calls and for PnL, where attention-perp results are verified from the on-chain close event. |
-| <sub>**ACCOUNT&nbsp;AND&nbsp;PHONE**</sub> | |
+| <sub>**ACCOUNT&nbsp;AND&nbsp;DEVICES**</sub> | |
 | **Mera passkeys** | One passkey derives the account, its trading session key, a caller identity, a vault key and a Perpl API key. |
 | **Gas-free** | A relayer pays for every allowlisted Trendr call. |
-| **PWA and push** | Installable, with Web Push for Autopilot and copy-trading activity, calls and markets. |
+| **PWA and push** | Installable on phone and desktop, with Web Push for Autopilot and copy-trading activity, calls and markets. |
 | **Any&#8209;chain deposits** | Aurora Intents brings value from about 35 chains into AUSD (Mainnet, see [docs/aurora.md](docs/aurora.md)). |
 | **Mainnet waitlist** | An email form in the app and on the website; nothing is sent until Mainnet launches. |
 
 ## How it works
+
+### System architecture
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/architecture-light.png">
@@ -62,16 +79,22 @@ Mainnet is next: the app and the website collect emails for its launch and beta 
   <img src="assets/readme/architecture-light.png" width="960" alt="System architecture. Top row: signals (Elfa, Bluesky, Wikipedia, GDELT, Nansen, and Hacker News as a boost) feed the backend radar and collector; the radar also reads what is trending on Elfa, Bluesky, CoinGecko and GeckoTerminal, each candidate reviewed by Gemini, OpenAI or Kimi, and the backend passes candidates and readings to the Chainlink CRE workflow, which sends a signed report to TrendRegistry on Monad. Middle row: the Trendr PWA sends a signed batch to the relayer, which executes it on the EIP-7702 PasskeyAccount, which trades on the markets (Up/Down on Kuru, attention perps, trend coins, Perpl perps). TrendRegistry feeds the markets the index and settlement. Bottom: keeper, market maker, Autopilot, top-up, Envio indexer and admin panel keep the markets running.">
 </picture>
 
-Trends start in the **backend** radar: Elfa trending tokens and narratives, CoinGecko's most-searched coins, GeckoTerminal's trending pools, Bluesky's trending topics, Wikipedia's most-read articles and pasted links become candidates, reviewed by Gemini, then OpenAI, then Kimi, and approved automatically at high confidence or by an admin.
+Trends start in the **backend** radar: Elfa trending tokens, CoinGecko's most-searched coins, GeckoTerminal's trending pools, Bluesky's trending topics, Wikipedia's most-read articles and pasted links become candidates, reviewed by Gemini, then OpenAI, then Kimi, and approved or rejected automatically; only a flagged or borderline candidate waits in the admin panel.
 The backend collector reads each trend's attention from Elfa, GDELT, Wikipedia, Nansen, Bluesky and Hacker News at the pace each source allows.
 The **CRE workflow** pulls the approved queue, measures it and decides under consensus which candidates become trends; only its forwarder can write to `TrendRegistry`.
 Bun **services** run everything around the contracts: the keeper opens, lists, settles, liquidates and graduates, the market maker quotes Kuru from the first block, Autopilot trades rules and copies, top-up refills every service wallet, and the Envio indexer builds portfolios and track records.
+
+### A trade's life
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/trade-life-light.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/trade-life-dark.png">
   <img src="assets/readme/trade-life-light.png" width="960" alt="A trade's life in six steps on one track: 1 the passkey signs once and Mera derives the account and a session key (7 days, 500 AUSD a day); 2 the session key signs each trade in the browser with no prompt; 3 the relayer checks policy and budgets and pays the gas; 4 the PasskeyAccount on Monad checks expiry, scope, guard and the gross daily limit; 5 the trade routes through TrendrSpot on Kuru or PerplOrderGuard on Perpl; 6 a toast confirms it with a Monadscan link and the indexer updates the portfolio.">
 </picture>
+
+One passkey prompt creates the account and a session key; from then on the session key signs each trade in the browser, the relayer pays the gas, and the account on chain checks the session's expiry, scope, price guard and daily limit before the trade reaches Kuru or Perpl.
+
+### From attention to an index
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/index-pipeline-light.png">
@@ -82,11 +105,15 @@ Bun **services** run everything around the contracts: the keeper opens, lists, s
 The index method, with every formula and budget, is in [apps/cre-oracle/docs/index-method.md](apps/cre-oracle/docs/index-method.md).
 Until Chainlink grants deploy access, Testnet runs the same workflow with `cre workflow simulate --broadcast` every minute through Chainlink's MockKeystoneForwarder, and the registry trusts only that broadcaster.
 
+### Accounts and guards
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/security-light.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/security-dark.png">
   <img src="assets/readme/security-light.png" width="960" alt="Accounts and guards: a session key's call passes gate 1 (expiry and a target and selector allowlist), gate 2 (price guards: TrendrSpot within 0.10 AUSD of the attention value, PerplOrderGuard within 2% of a fresh mark with a 10x cap) and gate 3 (a gross daily AUSD limit that inflows never offset). The passkey owner, verified on chain through the P256 precompile, grants sessions and alone can withdraw, add margin, trade coins and limit orders, grant Autopilot keys, upgrade and approve follows. The relayer and backend add activation tickets, gas budgets and a batch policy.">
 </picture>
+
+A session key can only make allowlisted calls at anchored prices within a gross daily limit, and everything that moves funds out, changes a session or grants Autopilot a key needs the passkey itself; the full list is under [Security model](#security-model).
 
 ## Deployed contracts on Monad Testnet
 
@@ -112,20 +139,11 @@ Every Trendr contract is verified on Monadscan and Sourcify, ownerless and non-u
 | CRE MockKeystoneForwarder (external, Chainlink) | Delivers the oracle's reports to TrendRegistry | [`0xB9F79d863261869B234c481D1f9A7af84AeAd192`](https://testnet.monadscan.com/address/0xB9F79d863261869B234c481D1f9A7af84AeAd192) |
 | Treasury (Testnet wallet) | Receives protocol fees | [`0xda55F7263b7e4D9B36b2F542EEC99fc3b5Dfae7a`](https://testnet.monadscan.com/address/0xda55F7263b7e4D9B36b2F542EEC99fc3b5Dfae7a) |
 
-## Bounty tracks
+## Mainnet ready
 
-| Bounty | How Trendr meets it |
-|---|---|
-| Agora: mobile trading | AUSD is the collateral of every Trendr market; the app is a phone-first PWA with passkey sign-up, bottom navigation, push and a Testnet AUSD faucet. |
-| Kuru: new assets | Attention outcome tokens are a new asset class on Kuru: each UP and DOWN token gets one canonical AUSD market through `OutcomeListing`, and graduated trend coins list through `KuruGraduationVenue` ([docs/kuru-attention-contracts.md](docs/kuru-attention-contracts.md)). |
-| Kuru: consumer | Every outcome trade in the app routes through Kuru via `TrendrSpot`, priced from a live Kuru book, with a market maker quoting UP and DOWN from the first block. |
-| Perpl API | Accounts trade Perpl perps on chain behind `PerplOrderGuard`, the backend serves Perpl market data and candles, and Autopilot runs rules and copy-trading on Perpl, with its bot able to trade through Perpl's signed API (`packages/perpl`). |
-| Chainlink CRE | The attention index is a CRE workflow with median consensus across nodes and a signed report to `TrendRegistry`; on Testnet it runs by simulation with `--broadcast` until deploy access is granted. |
-| Nansen | Smart-money net flow is an index component, gates new crypto trends, filters Autopilot rules and appears on every crypto trend. |
-| Mera: UX | Sign-up is one passkey prompt with no seed phrase and no gas; a session key then signs trades silently for a week. |
-| Mera: Many Keys | One passkey's PRF output derives the account key, the session key, an unlinkable caller identity, a vault key and a Perpl Ed25519 key; a new device with the same passkey rebuilds them all (`frontend/e2e/mera-keys.live.spec.ts`). |
-| Aurora Intents | `packages/aurora` covers the Swap API, persistent deposit addresses and Intents Connect recipes, and the deposit page converts USDC to AUSD; it targets Mainnet, where quotes and the conversion were verified read-only and on a fork ([docs/aurora.md](docs/aurora.md)). |
-| Envio | A HyperIndex indexer follows every Trendr contract, Kuru markets and Trendr accounts on Perpl, and builds portfolios, leaderboards, track records and curation earnings ([indexer/README.md](indexer/README.md)). |
+Trendr is built and rehearsed for Monad Mainnet: the full deploy runs every night on a fork of Mainnet with the real AUSD, Kuru, Perpl, Chainlink CRE forwarders and the P256 precompile, and the Mainnet configs, Aurora deposits and service settings are already in the code.
+Next, Trendr keeps running on Testnet while it onboards its first users from the waitlist into a beta, then goes live on Mainnet one product at a time: the contracts and the oracle first, then attention perps, trend coins, Perpl trading and Aurora deposits, and Up/Down on Kuru last, since Kuru's Safe deploys each series' markets.
+[docs/mainnet.md](docs/mainnet.md) has the runbook, the measured MON budget and what the rehearsal found.
 
 ## Tech stack
 
@@ -135,10 +153,23 @@ Every Trendr contract is verified on Monadscan and Sourcify, ownerless and non-u
 | **Contracts** | Solidity 0.8.30, Foundry, OpenZeppelin, Slither |
 | **Oracle** | Chainlink CRE TypeScript SDK (QuickJS WASM), Bun |
 | **App and admin** | Next.js 16, React 19, Tailwind CSS 4, viem, Mera passkeys, Lightweight Charts |
-| **Landing page** | Next.js 15 |
+| **Website** | Next.js 15 |
 | **Backend and services** | Bun, Hono, viem, Postgres, zod |
 | **Indexer** | Envio HyperIndex, HyperSync for history and RPC at the head |
-| **Hosting (planned)** | Railway for services, Vercel for apps |
+| **Hosting** | Railway for the services and Postgres, Vercel for the app, admin panel and website, Cloudflare DNS |
+
+## Repository map
+
+| Path | What it holds |
+|---|---|
+| [`contracts/`](contracts) | Foundry contracts with unit, fuzz, fork and invariant suites, deploy scripts and the Testnet address book |
+| [`apps/cre-oracle/`](apps/cre-oracle) | The Chainlink CRE workflow behind the attention index |
+| [`apps/relayer/`](apps/relayer), [`apps/keeper/`](apps/keeper), [`apps/market-maker/`](apps/market-maker), [`apps/autopilot/`](apps/autopilot), [`apps/topup/`](apps/topup) | The services around the contracts: gas sponsor, keeper, Kuru market maker, Autopilot executor and wallet top-up |
+| [`backend/`](backend) | Radar, collectors, AI review, auth, social, push, faucet and the admin system view |
+| [`indexer/`](indexer) | Envio HyperIndex for portfolios, leaderboards and track records |
+| [`frontend/`](frontend), [`admin/`](admin), [`landing-page/`](landing-page) | The app, the admin panel and the website |
+| [`packages/`](packages) | Shared TypeScript: contract bindings, chain helpers, Perpl, Autopilot and Aurora |
+| [`docs/`](docs) | Mainnet runbook, Aurora deposits and the Kuru notes for attention contracts |
 
 ## Security model
 
@@ -192,13 +223,13 @@ cd frontend && npm run build                       # app production build
 
 ## Tests
 
-Counted from a run of each suite on 2026-10-11, and on 2026-10-13 for the backend, frontend unit and indexer suites.
+Counted from a run of each suite on 2026-10-13; the live suites ran against the hosted app at app.trendr.bid.
 
 | Suite | Tests |
 |---|---|
 | contracts | 207 forge tests: unit, fuzz and invariants, plus 4 fork rehearsal tests (Testnet and Mainnet forks) and 32 planted mutations |
 | backend | 286 |
-| relayer | 82, plus 10 end-to-end on Anvil |
+| relayer | 95, plus 10 end-to-end on Anvil |
 | aurora | 99, plus 6 against live Aurora APIs |
 | CRE oracle | 73 |
 | topup | 52, plus 3 end-to-end on Anvil |
@@ -208,16 +239,9 @@ Counted from a run of each suite on 2026-10-11, and on 2026-10-13 for the backen
 | keeper | 20 |
 | packages | 86 (`autopilot` 29, `contracts-ts` 31, `chain` 19, `perpl` 7) |
 | frontend | 80 unit tests; 16 Playwright on Anvil; live Testnet Playwright suites: trend 1, live 6, portfolio 17 |
-| admin | 21 Playwright |
+| admin | 26 Playwright |
 
-CI runs the contracts, backend, app, admin, indexer, oracle, Aurora, relayer, keeper, market maker and top-up suites, plus a nightly Mainnet fork rehearsal ([.github/workflows](.github/workflows)).
-
-## Mainnet readiness
-
-Nothing is on Mainnet yet.
-A full deploy was rehearsed on an Anvil fork of Mainnet with the real AUSD, Kuru, Perpl, CRE forwarders and P256 precompile, and runs nightly.
-Mainnet goes live one product at a time: contracts and the oracle first, then attention perps, trend coins, Perpl and Aurora deposits, with Up/Down on Kuru last because Kuru's Safe must deploy each series' markets.
-[docs/mainnet.md](docs/mainnet.md) has the runbook, the measured MON budget and what the rehearsal found.
+CI runs every component's suite on each push (contracts, backend, app, admin, website, indexer, oracle, Aurora, relayer, keeper, market maker, Autopilot and top-up), a scan for verified secrets, and a nightly Mainnet fork rehearsal ([.github/workflows](.github/workflows)).
 
 ## Sources and credits
 
@@ -239,14 +263,11 @@ Mainnet goes live one product at a time: contracts and the oracle first, then at
 | [Hacker News](https://hn.algolia.com/api) | Stories and comments, through Algolia's search API |
 | [CoinGecko](https://www.coingecko.com) and [GeckoTerminal](https://www.geckoterminal.com) | Most-searched coins and trending pools for the radar |
 | [Gemini](https://ai.google.dev), [OpenAI](https://platform.openai.com) and [Kimi](https://platform.moonshot.ai) | Candidate review |
+| Claude and Codex | AI coding tools that helped build Trendr |
 
 Demo activity: a few project-owned Testnet accounts made test transactions so the markets, leaderboards and threads show the product in use.
 
 Built by aliyaan.
-
-## AI tools
-
-Built with the help of AI coding tools: Claude and Codex.
 
 ## License
 
