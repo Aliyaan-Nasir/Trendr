@@ -220,7 +220,7 @@ function ProposeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
               <Link2 className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Posts on X, YouTube, TikTok and Reddit, Wikipedia articles and news pages.
             </li>
             <li className="flex gap-2">
-              <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Trendr&rsquo;s AI names the topic and checks it against market policy, a person reviews it, and the oracle measures its attention before it lists.
+              <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Trendr&rsquo;s AI names the topic, checks it against market policy and approves it automatically, and the oracle measures its attention before it lists.
             </li>
           </ul>
           <Button type="submit" size="lg" block loading={propose.isPending || !account.backendReady} disabled={!url.trim() || !account.backendReady}>

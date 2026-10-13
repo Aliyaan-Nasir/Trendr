@@ -429,6 +429,57 @@ html[data-waitlist~="row-dismissed"] .when-waitlist-row {
   display: none;
 }
 
+/* A toast's timer: a glowing bar along its foot fills from edge to edge over the toast's life (the
+   duration comes inline from src/lib/toast.tsx) and pauses, like the timer, while the stack is
+   hovered; a pending transaction's bar sweeps instead. */
+[data-toast-bar] {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  box-shadow: 0 0 10px var(--primary), 0 0 3px var(--accent);
+  pointer-events: none;
+}
+[data-toast-bar="timed"] {
+  right: 0;
+  transform-origin: left;
+  animation-name: toast-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+[data-toast-bar="wait"] {
+  width: 36%;
+  animation: toast-wait 1.6s ease-in-out infinite;
+}
+[data-sonner-toaster]:hover [data-toast-bar] {
+  animation-play-state: paused;
+}
+@keyframes toast-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes toast-wait {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-toast-bar="wait"] {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 /* Desktop: toasts sit beside an open side sheet (420px wide, 12px from the edge), never over its actions. */
 @media (min-width: 1024px) {
   body:has([data-vaul-drawer-direction="right"][data-state="open"]) [data-sonner-toaster][data-x-position="right"] {

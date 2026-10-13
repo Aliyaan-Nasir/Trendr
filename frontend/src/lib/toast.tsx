@@ -9,10 +9,33 @@ import { EXPLORER_NAME, explorerTx } from "@/lib/config";
  * toast per transaction that moves through pending, filled and final (or failed) in place.
  */
 
+const INFO_MS = 4_000;
 const ERROR_MS = 8_000;
 const TX_MS = 4_000;
 /** The final update restarts the timer, so it stays only briefly: the fill was already shown. */
 const FINAL_MS = 2_500;
+const COPIED_MS = 1_800;
+const CANCELLED_MS = 3_000;
+
+/**
+ * The glowing bar along a toast's foot: it fills from edge to edge over the toast's life (`ms`), so it
+ * reaches the far edge as the toast closes, or sweeps back and forth while a transaction is pending.
+ * A fresh key restarts it whenever the toast is updated in place, as the timer restarts too.
+ */
+let barKey = 0;
+function Bar({ ms }: { ms: number | null }) {
+  return <span aria-hidden data-toast-bar={ms === null ? "wait" : "timed"} style={ms === null ? undefined : { animationDuration: `${ms}ms` }} />;
+}
+
+/** A toast's description with its bar: the bar sits inside it but is drawn along the toast's foot. */
+function body(description: ReactNode, ms: number | null): ReactNode {
+  return (
+    <>
+      {description}
+      <Bar key={++barKey} ms={ms} />
+    </>
+  );
+}
 
 /** The compact Monadscan link a toast carries on its right. */
 export function ToastLink({ href, label = EXPLORER_NAME }: { href: string; label?: string }) {
@@ -32,12 +55,13 @@ export function ToastLink({ href, label = EXPLORER_NAME }: { href: string; label
 
 /** `href` adds the Monadscan link: the transaction or account the toast is about. */
 export const notify = {
-  success: (title: string, description?: ReactNode, href?: string) => toast.success(title, { description, action: href ? <ToastLink href={href} /> : undefined }),
-  info: (title: string, description?: ReactNode) => toast.info(title, { description }),
+  success: (title: string, description?: ReactNode, href?: string) =>
+    toast.success(title, { description: body(description, INFO_MS), duration: INFO_MS, action: href ? <ToastLink href={href} /> : undefined }),
+  info: (title: string, description?: ReactNode) => toast.info(title, { description: body(description, INFO_MS), duration: INFO_MS }),
   /** A failure the user should read: stays a little longer. */
-  error: (title: string, description?: ReactNode) => toast.error(title, { description, duration: ERROR_MS }),
+  error: (title: string, description?: ReactNode) => toast.error(title, { description: body(description, ERROR_MS), duration: ERROR_MS }),
   /** A short "Copied", replacing the previous one rather than stacking. */
-  copied: (title = "Copied") => toast.success(title, { id: "copied", duration: 1_800 }),
+  copied: (title = "Copied") => toast.success(title, { id: "copied", description: body(undefined, COPIED_MS), duration: COPIED_MS }),
 };
 
 /** Copies text and confirms it with a toast; says so when the browser refuses. */
@@ -62,27 +86,28 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 export const txToast = {
   pending(id: string, action: string) {
     open.add(id);
-    toast.loading(action, { id, description: "Sending to Monad", duration: Number.POSITIVE_INFINITY, ...track });
+    toast.loading(action, { id, description: body("Sending to Monad", null), duration: Number.POSITIVE_INFINITY, ...track });
   },
   filled(id: string, { done, fillMs, hash, final }: { done: string; fillMs: number | null; hash: string; final: boolean }) {
     // A finality update only refreshes a toast that is still showing.
     if (final && !open.has(id)) return;
     open.add(id);
+    const ms = final ? FINAL_MS : TX_MS;
     toast.success(done, {
       id,
-      description: `Filled${fillMs === null ? "" : ` in ${seconds(fillMs)}`}, ${final ? "final" : "finalizing"}`,
+      description: body(`Filled${fillMs === null ? "" : ` in ${seconds(fillMs)}`}, ${final ? "final" : "finalizing"}`, ms),
       action: <ToastLink href={explorerTx(hash)} />,
-      duration: final ? FINAL_MS : TX_MS,
+      duration: ms,
       ...track,
     });
   },
   failed(id: string, { action, reason, hash }: { action: string; reason: string; hash: string | null }) {
     open.delete(id);
-    toast.error(`${action} failed`, { id, description: reason, action: hash ? <ToastLink href={explorerTx(hash)} /> : undefined, duration: ERROR_MS });
+    toast.error(`${action} failed`, { id, description: body(reason, ERROR_MS), action: hash ? <ToastLink href={explorerTx(hash)} /> : undefined, duration: ERROR_MS });
   },
   cancelled(id: string, action: string) {
     open.delete(id);
-    toast(`${action} cancelled`, { id, description: "Nothing was sent.", duration: 3_000 });
+    toast(`${action} cancelled`, { id, description: body("Nothing was sent.", CANCELLED_MS), duration: CANCELLED_MS });
   },
   dismiss(id: string) {
     open.delete(id);

@@ -24,7 +24,7 @@
 
 ## What is Trendr
 
-A radar watches X, Telegram, Bluesky, CoinGecko, GeckoTerminal and Wikipedia for topics that are taking off, and an AI review decides automatically which become trends; only a flagged or borderline topic waits for a person.
+A radar watches X, Telegram, Bluesky, CoinGecko, GeckoTerminal and Wikipedia for topics that are taking off, and an AI review decides automatically which become trends.
 A Chainlink CRE workflow measures each trend's attention from Elfa, GDELT, Wikipedia, Nansen, Bluesky and Hacker News and writes a 0 to 100 attention index to Monad.
 Every trend then gets markets on that index: Up/Down outcome series on Kuru, attention perps and a trend coin on a bonding curve, next to Perpl perps on the underlying asset.
 Users sign up with a passkey, never see a seed phrase or a gas fee, and trade with one prompt a week thanks to guarded session keys.
@@ -79,7 +79,7 @@ In about two minutes:
   <img src="assets/readme/architecture-light.png" width="960" alt="System architecture. Top row: signals (Elfa, Bluesky, Wikipedia, GDELT, Nansen, and Hacker News as a boost) feed the backend radar and collector; the radar also reads what is trending on Elfa, Bluesky, CoinGecko and GeckoTerminal, each candidate reviewed by Gemini, OpenAI or Kimi, and the backend passes candidates and readings to the Chainlink CRE workflow, which sends a signed report to TrendRegistry on Monad. Middle row: the Trendr PWA sends a signed batch to the relayer, which executes it on the EIP-7702 PasskeyAccount, which trades on the markets (Up/Down on Kuru, attention perps, trend coins, Perpl perps). TrendRegistry feeds the markets the index and settlement. Bottom: keeper, market maker, Autopilot, top-up, Envio indexer and admin panel keep the markets running.">
 </picture>
 
-Trends start in the **backend** radar: Elfa trending tokens, CoinGecko's most-searched coins, GeckoTerminal's trending pools, Bluesky's trending topics, Wikipedia's most-read articles and pasted links become candidates, reviewed by Gemini, then OpenAI, then Kimi, and approved or rejected automatically; only a flagged or borderline candidate waits in the admin panel.
+Trends start in the **backend** radar: Elfa trending tokens, CoinGecko's most-searched coins, GeckoTerminal's trending pools, Bluesky's trending topics, Wikipedia's most-read articles and pasted links become candidates, reviewed by Gemini, then OpenAI, then Kimi, and approved or rejected automatically.
 The backend collector reads each trend's attention from Elfa, GDELT, Wikipedia, Nansen, Bluesky and Hacker News at the pace each source allows.
 The **CRE workflow** pulls the approved queue, measures it and decides under consensus which candidates become trends; only its forwarder can write to `TrendRegistry`.
 Bun **services** run everything around the contracts: the keeper opens, lists, settles, liquidates and graduates, the market maker quotes Kuru from the first block, Autopilot trades rules and copies, top-up refills every service wallet, and the Envio indexer builds portfolios and track records.
