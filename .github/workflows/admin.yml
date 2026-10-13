@@ -1,0 +1,38 @@
+name: admin
+
+on:
+  push:
+    paths: ["admin/**", ".github/workflows/admin.yml"]
+  pull_request:
+    paths: ["admin/**", ".github/workflows/admin.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: admin-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: admin
+
+jobs:
+  check:
+    # The Playwright tests (npm run test:e2e) need a running backend and an admin wallet key, so
+    # they run locally only; see admin/README.md.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.22.1
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build

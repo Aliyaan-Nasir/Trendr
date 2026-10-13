@@ -1,0 +1,30 @@
+name: aurora
+
+on:
+  push:
+    paths: ["packages/aurora/**", "packages/contracts-ts/src/abis.ts", ".github/workflows/aurora.yml"]
+  pull_request:
+    paths: ["packages/aurora/**", "packages/contracts-ts/src/abis.ts", ".github/workflows/aurora.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: packages/aurora
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      # Recorded fixtures only. The live dry runs (AURORA_LIVE=1) need the Aurora key and stay local.
+      # The recipe tests decode against packages/contracts-ts/src/abis.ts, so ABI drift fails here.
+      - name: Tests
+        run: bun test
