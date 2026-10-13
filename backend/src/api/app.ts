@@ -232,6 +232,9 @@ export function createApp(d: AppDeps): Hono {
   // listens), without depending on the chain RPC.
   app.get("/live", (c) => c.json({ live: true }));
 
+  // The bare origin names the service and where to look, instead of a 404 for anyone who opens it.
+  app.get("/", (c) => c.json({ service: "Trendr API", live: true, health: "/health", status: "/v1/status", app: "https://app.trendr.bid" }));
+
   // Public: up or down, and how fresh the oracle is. The detail is behind admin sign-in.
   app.get("/health", async (c) => {
     const h = await healthDetail();

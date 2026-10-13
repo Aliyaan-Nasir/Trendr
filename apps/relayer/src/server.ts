@@ -139,6 +139,9 @@ export function buildServer(o: ServerOptions) {
   // Liveness for the platform's deploy check: the process serves, whatever the sponsor keys hold.
   app.get("/live", (c) => c.json({ live: true }));
 
+  // The bare origin names the service and where to look, instead of a 404 for anyone who opens it.
+  app.get("/", (c) => c.json({ service: "Trendr relayer", live: true, health: "/v1/health", app: "https://app.trendr.bid" }));
+
   let fundsCache: { at: number; value: Promise<{ address: string; balanceWei: bigint }[]> } | null = null;
   app.get("/v1/health", async (c) => {
     // Spend against the budgets. A spent budget is a throttle, not an outage, so it never turns
