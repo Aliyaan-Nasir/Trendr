@@ -28,7 +28,10 @@ if [ -n "${ORACLE_BACKEND_URL:-}" ]; then
   bun scripts/sync-config.ts --target "$target" --backend "$ORACLE_BACKEND_URL"
 fi
 
-# The CLI reads keys from .env when present and from the environment otherwise.
+# The CLI reads keys from .env when present and from the environment otherwise, and refuses to
+# compile when a name in secrets.yaml is missing; an empty value turns that source off.
+export CRE_ELFA_API_KEY="${CRE_ELFA_API_KEY:-}" CRE_REDDIT_CLIENT_ID="${CRE_REDDIT_CLIENT_ID:-}" \
+  CRE_REDDIT_CLIENT_SECRET="${CRE_REDDIT_CLIENT_SECRET:-}" CRE_NANSEN_API_KEY="${CRE_NANSEN_API_KEY:-}"
 set -- --target "$target"
 if [ -n "${LOOP_EVERY_SEC:-}" ]; then set -- "$@" --every "$LOOP_EVERY_SEC"; fi
 exec bun scripts/loop.ts "$@"
