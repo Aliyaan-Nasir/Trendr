@@ -1,0 +1,41 @@
+name: backend
+
+on:
+  push:
+    paths: ["backend/**", "packages/**", ".github/workflows/backend.yml"]
+  pull_request:
+    paths: ["backend/**", "packages/**", ".github/workflows/backend.yml"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trendr
+          POSTGRES_PASSWORD: trendr
+          POSTGRES_DB: trendr_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trendr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://trendr:trendr@localhost:5432/trendr_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install
+        working-directory: backend
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: backend
+        run: bunx tsc --noEmit
+      - name: Tests
+        working-directory: backend
+        run: bun run test

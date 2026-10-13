@@ -1,0 +1,52 @@
+name: relayer
+
+on:
+  push:
+    paths: ["apps/relayer/**", "packages/contracts-ts/**", "packages/chain/**", "packages/perpl/**", "contracts/src/**", ".github/workflows/relayer.yml"]
+  pull_request:
+    paths: ["apps/relayer/**", "packages/contracts-ts/**", "packages/chain/**", "packages/perpl/**", "contracts/src/**", ".github/workflows/relayer.yml"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Shared contracts package
+        working-directory: packages/contracts-ts
+        run: |
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+          bun test
+      - name: Shared chain package (sender, realtime streams)
+        working-directory: packages/chain
+        run: |
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+          bun test
+      - name: Shared Perpl package
+        working-directory: packages/perpl
+        run: |
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+          bun run test
+      - name: Install
+        working-directory: apps/relayer
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: apps/relayer
+        run: bunx tsc --noEmit
+      - name: Unit tests
+        working-directory: apps/relayer
+        run: bun test
+      - name: End to end on Anvil (EIP-7702, P256)
+        working-directory: apps/relayer
+        run: bun run test:e2e
