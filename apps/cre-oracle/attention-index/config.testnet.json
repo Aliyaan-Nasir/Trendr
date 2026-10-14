@@ -243,10 +243,10 @@
       "maxCandidates": 2
     },
     "maxCandidatesPerRun": 2,
-    "maxLiveTrends": 10
+    "maxLiveTrends": 13
   },
   "sampling": {
-    "maxSamplesPerRun": 12,
+    "maxSamplesPerRun": 13,
     "heartbeatSec": 420,
     "deviationBps": 100,
     "minCreateIndexPoints": 5

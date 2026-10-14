@@ -122,7 +122,7 @@ export const configSchema = z.object({
     maxLiveTrends: z.number().int().min(1),
   }),
   sampling: z.object({
-    maxSamplesPerRun: z.number().int().min(1).max(12),
+    maxSamplesPerRun: z.number().int().min(1).max(13),
     /** Re-report an unchanged trend at least this often so it stays fresh on chain. */
     heartbeatSec: z.number().int().positive(),
     /** Report a sampled trend when its index moved at least this much (basis points). */
