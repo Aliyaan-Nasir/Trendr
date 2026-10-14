@@ -21,7 +21,7 @@ const statsData = [
   {
     number: "1",
     heading: "Each Winning Token Pays 1 AUSD",
-    content: "UP and DOWN trade between 0 and 1 AUSD, a dollar stablecoin. At settlement each winning token pays 1 AUSD.",
+    content: "UP and DOWN trade between 0 and 1 AUSD, a dollar stablecoin. At settlement each winning token pays 1 AUSD and each losing token pays nothing.",
     image: "/assets/img/rising-chart.jpg",
     alt: "A glowing line chart rising through glass panes"
   },

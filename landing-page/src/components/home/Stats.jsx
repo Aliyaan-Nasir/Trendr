@@ -51,7 +51,7 @@ const mids = [
   const content = [
     "Social mentions, Wikipedia pageviews and onchain flows become one index, recorded on chain by a Chainlink oracle.",
     "Every Up/Down series asks one question: will the index close above where it opened?",
-    "UP and DOWN trade between 0 and 1 AUSD, a dollar stablecoin. At settlement each winning token pays 1 AUSD.",
+    "UP and DOWN trade between 0 and 1 AUSD, a dollar stablecoin. At settlement each winning token pays 1 AUSD and each losing token pays nothing.",
     "Sign in with a passkey. A relayer sponsors the gas, so there is no seed phrase and no extension.",
     "Up/Down outcomes on Kuru, attention perps, trend coins on bonding curves and Perpl perps.",
   ];
@@ -91,6 +91,7 @@ const mids = [
           end: `${endPos}% 20.5%`,
 
           onEnter: () => {
+            if (!headingRefs.current[i] || !contentRefs.current[i]) return;
             if (i > 0) {
               gsap.fromTo(
                 [headingRefs.current[i], contentRefs.current[i]],
@@ -118,6 +119,7 @@ const mids = [
 
           // === ON LEAVE DOWN (scroll continues) ===
           onLeave: () => {
+            if (!headingRefs.current[i] || !contentRefs.current[i]) return;
             if (i < total - 1) {
               gsap.to([headingRefs.current[i], contentRefs.current[i]], {
                 y: "-8vw",
@@ -130,6 +132,7 @@ const mids = [
 
           // === ON ENTER BACK (scrolling up) ===
           onEnterBack: () => {
+            if (!headingRefs.current[i] || !contentRefs.current[i]) return;
             if(i===total-1)
                 return;
             gsap.fromTo(
@@ -158,6 +161,7 @@ const mids = [
 
           // === ON LEAVE BACK (scroll up past item) ===
           onLeaveBack: () => {
+            if (!headingRefs.current[i] || !contentRefs.current[i]) return;
             if (i > 0) {
               gsap.to([headingRefs.current[i], contentRefs.current[i]], {
                 y: "8vw",

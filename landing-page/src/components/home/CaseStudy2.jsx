@@ -16,7 +16,7 @@ const CaseStudy2 = () => {
       assetClass: 'Crypto',
       marketType: 'Up / Down',
       network: 'Monad Testnet',
-      quote: "Bitcoin is all over the feed. Will its attention index end the day above where it opened? Buy UP or DOWN on Kuru, and the winning side pays one AUSD.",
+      quote: "Bitcoin is all over the feed. Will its attention index end the day above where it opened? Buy UP or DOWN on Kuru: each winning token redeems for 1 AUSD, and each losing token for nothing.",
       image: "/assets/img/topics-trend-every-day.png",
       alt: 'Phones showing rising charts on a dark desk',
     },

@@ -155,7 +155,7 @@ export default function Navbar() {
 
       <nav
         id="navv"
-        className="fixed top-0 left-0 right-0 w-full h-[3vw] flex items-start justify-between z-9999 max-sm:h-[14vw]"
+        className="fixed top-0 left-0 right-0 w-full h-[3vw] flex items-start justify-between z-9999 max-sm:h-[14vw] pointer-events-none"
       >
         {/* Left - Menu */}
         <button
@@ -166,7 +166,7 @@ export default function Navbar() {
             setMenuOpen(!menuOpen);
           }}
           onMouseEnter={handleMenuHover}
-          className={`flex  overflow-hidden  nav-menu-item items-center  gap-[1.5vw] cursor-pointer outline-none bg-[#9C93E8] px-[1.5vw] h-full py-[1vw] rounded-br-[1vw]   z-10000 relative max-sm:px-[4vw] max-sm:gap-[3vw] max-sm:rounded-br-[3vw] ${menuOpen? '': 'group'}`}
+          className={`flex  overflow-hidden  nav-menu-item items-center  gap-[1.5vw] pointer-events-auto cursor-pointer outline-none bg-[#9C93E8] px-[1.5vw] h-full py-[1vw] rounded-br-[1vw]   z-10000 relative max-sm:px-[4vw] max-sm:gap-[3vw] max-sm:rounded-br-[3vw] ${menuOpen? '': 'group'}`}
         >
           <div className="flex flex-col w-[1vw] justify-start gap-[0.2vw] relative group cursor-pointer max-sm:w-[5vw] max-sm:gap-[0.7vw]">
             <span
@@ -233,7 +233,7 @@ export default function Navbar() {
           href={APP_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="relative nav-menu-item flex flex-col items-center overflow-hidden justify-center cursor-pointer outline-none bg-[#9C93E8] px-[1vw] h-full py-[1vw] rounded-bl-[1vw] max-sm:px-[4vw] max-sm:rounded-bl-[3vw] z-10002 max-sm:z-[9998] group"
+          className="relative nav-menu-item pointer-events-auto flex flex-col items-center overflow-hidden justify-center cursor-pointer outline-none bg-[#9C93E8] px-[1vw] h-full py-[1vw] rounded-bl-[1vw] max-sm:px-[4vw] max-sm:rounded-bl-[3vw] z-10002 max-sm:z-[9998] group"
         >
           <div className="relative w-[7vw] flex justify-center items-start h-[1vw] overflow-hidden max-sm:w-[24vw] max-sm:h-[5vw]">
             <div className="w-fit px-[0.1vw] flex flex-col group-hover:translate-y-[-1.25vw] group-hover:transition-all group-hover:duration-300 gap-[0.2vw] items-center justify-center">

@@ -15,6 +15,8 @@ export default function PageTransition({ children }) {
   const pendingPathRef = useRef(null);
   const [freezeContext, setFreezeContext] = useState(null);
   const scrollPositionRef = useRef(0);
+  // Set when the freeze ends because another page is about to open: that page starts at its top.
+  const toTopRef = useRef(false);
 
   const currentContext = useContext(LayoutRouterContext);
 
@@ -61,7 +63,12 @@ export default function PageTransition({ children }) {
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.width = '';
-      if (scrollY) {
+      if (toTopRef.current) {
+        // The old page's position would carry into the new one, whose scroll animations would then
+        // start part-way through (the hero video already full size at the top).
+        toTopRef.current = false;
+        window.scrollTo(0, 0);
+      } else if (scrollY) {
         window.scrollTo(0, parseInt(scrollY || '0') * -1);
       }
     }
@@ -104,6 +111,7 @@ export default function PageTransition({ children }) {
       },
     });
 
+    toTopRef.current = Boolean(pendingPathRef.current);
     setIsRouteFrozen(false);
     
     if (pendingPathRef.current) {
@@ -115,7 +123,12 @@ export default function PageTransition({ children }) {
   useEffect(() => {
     if (!isAnimating) return;
     
+    // The new page mounted while the transition held the layout, so its scroll animations and the
+    // smooth scroller measured the wrong page (the hero video arrived full size at the top). A resize
+    // makes both measure the page that is really there.
+    const remeasure = () => window.dispatchEvent(new Event("resize"));
     const timer = setTimeout(async () => {
+      remeasure();
       // Set initial exit state
       await overlayControls.set({
         clipPath: "polygon(100% 100%, 0% 0%, 100% 100%, 0% 100%, 0% 0%, 100% 0%)",
@@ -153,6 +166,7 @@ export default function PageTransition({ children }) {
       });
 
       setIsAnimating(false);
+      remeasure();
     }, 1150);
 
     return () => clearTimeout(timer);
