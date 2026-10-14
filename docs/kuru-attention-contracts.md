@@ -32,7 +32,7 @@ There is no issuer discretion: the contracts are ownerless and non-upgradeable, 
 
 ## Settlement source
 
-The attention index is computed by a Chainlink CRE workflow (`apps/cre-oracle`) from Elfa (X and Telegram), Reddit, Wikipedia pageviews and, for crypto trends, Nansen smart-money flows.
+The attention index is computed by a Chainlink CRE workflow (`apps/cre-oracle`) from Elfa (X and Telegram), Bluesky posts, GDELT news coverage, Wikipedia pageviews and, for crypto trends, Nansen smart-money flows, with Hacker News as a boost.
 The method is documented in `apps/cre-oracle/docs/index-method.md`: each source is normalized, clipped and deseasonalized, then weighted.
 Every node computes the index independently and the values are aggregated by median consensus before a single signed report reaches `TrendRegistry` on Monad.
 The registry clamps any single move, rejects stale or replayed reports, and records every observation as a checkpoint.
@@ -86,7 +86,7 @@ Operational controls planned for Mainnet:
 
 - Geofencing of the app (not of the contracts) for jurisdictions where event contracts on attention are restricted, including the United States until a regulated route exists.
 - Sanctions screening of addresses at the app and relayer, which already decides which transactions it sponsors.
-- Topic policy: no series on individuals' private lives, on violence or on tragedies; the admin candidate review applies this before a trend is proposed, and the trend radar will apply it automatically.
+- Topic policy, already live: no series on individuals' private lives, on violence or on tragedies; the AI review checks every candidate against it automatically before a trend is listed.
 - Terms of use and in-app risk disclosure stating the maximum loss, the settlement source and the void and retirement rules before the first trade.
 - Monitoring and alerts on oracle staleness, keeper lag and market maker inventory, with a kill switch for the market maker.
 
@@ -94,7 +94,7 @@ Operational controls planned for Mainnet:
 
 - Now (Testnet): canonical markets listed automatically, market maker quoting every listed series, gas-free trading from passkey accounts, settlement live.
 - Mainnet launch: Kuru-deployed canonical markets recorded by `adopt`, a funded market maker on the 24 hour and 7 day windows, and geofenced access.
-- Next: more windows (1 hour for fast-moving events), more sources in the index (YouTube, news), range contracts (attention above a level, not just above the open), and a maker program with shared fee rebates.
+- Next: more windows (1 hour for fast-moving events), more sources in the index (such as YouTube), range contracts (attention above a level, not just above the open), and a maker program with shared fee rebates.
 - Later: native Android and iOS apps, more venues for the same contracts, and an attention data API for teams.
 
 Targets for the first quarter after Mainnet launch: 20 active trends at any time, 50,000 AUSD of weekly outcome volume on Kuru, at least two independent makers, and spreads under 4 cents on every listed book.

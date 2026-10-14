@@ -5,7 +5,7 @@ export const LAST_UPDATED = "13 October 2026";
 export const LAST_UPDATED_ISO = "2026-10-13";
 
 // Who operates Trendr, where, and how to reach them; used across the legal pages.
-export const COMPANY = "Aliyan Nasir, trading as Trendr";
+export const COMPANY = "Aliyaan Nasir, trading as Trendr";
 export const JURISDICTION = "Karachi, Pakistan";
 export const GOVERNING_LAW = "Pakistan";
 export const CONTACT_EMAIL = "contact@trendr.bid";

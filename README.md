@@ -235,7 +235,7 @@ Counted from a run of each suite on 2026-10-13; the live suites ran against the 
 
 | Suite | Tests |
 |---|---|
-| contracts | 207 forge tests: unit, fuzz and invariants, plus 4 fork rehearsal tests (Testnet and Mainnet forks) and 32 planted mutations |
+| contracts | 207 forge tests: unit, fuzz and 5 invariant suites, plus 9 fork tests (8 on a Testnet fork, 1 Mainnet rehearsal) and 32 planted mutations |
 | backend | 286 |
 | relayer | 95, plus 10 end-to-end on Anvil |
 | aurora | 99, plus 6 against live Aurora APIs |

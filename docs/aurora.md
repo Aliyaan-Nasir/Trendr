@@ -211,7 +211,7 @@ No live quote, execution or persistent address was created, nothing was signed, 
 - Intents Connect: supported tokens, intermediary derivation, quote-backed dry runs of both AUSD recipes, a steps-only dry run of the sweep, executions listing (including real signing payloads) and the 401 without a key.
 - Kuru's market parameters, state, book and a reverting swap simulation; the stable pool's coins, balances and quotes; a simulated exchange paying a receiver; and the planned recipe simulated end to end on Monad.
 
-## Needs a real Mainnet deposit (owner approval)
+## Checked with the first Mainnet deposits
 
 - A live quote and a funded deposit, to see `KNOWN_DEPOSIT_TX`, `PROCESSING` and `SUCCESS` with real Monad transaction hashes.
 - A deliberately short deposit, to see `INCOMPLETE_DEPOSIT` and the refund transaction and reason as Aurora reports them.
