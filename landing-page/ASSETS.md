@@ -15,6 +15,7 @@ Generated with Higgsfield.
 
 | File | Where it is used |
 | --- | --- |
+| `public/assets/img/attention-cat.jpg` | "Attention, Scored 0 to 100" card |
 | `public/assets/img/topics-islands.jpg` | About slider, first slide |
 | `public/assets/img/topics-wave.jpg` | "Topics trend every day" card |
 | `public/assets/img/rising-chart.jpg` | "Each Winning Token Pays 1 AUSD" card |

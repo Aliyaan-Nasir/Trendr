@@ -8,8 +8,8 @@ const statsData = [
     number: "100",
     heading: "Scored 0 to 100",
     content: "Social mentions, Wikipedia pageviews and onchain flows become one index, recorded on chain by a Chainlink oracle.",
-    image: "/assets/img/elfa-ai.jpg",
-    alt: "An illustrated cat trading at a desk"
+    image: "/assets/img/attention-cat.jpg",
+    alt: "An illustrated lavender cat in a hoodie trading Up and Down at a desk in a library"
   },
   {
     number: "24h",
@@ -30,7 +30,7 @@ const statsData = [
     heading: "No Gas to Pay",
     content: "Sign in with a passkey. A relayer sponsors the gas, so there is no seed phrase and no extension.",
     image: "/assets/img/no-gas-cat.jpg",
-    alt: "An illustrated purple cat in a hoodie being patted on the head beside a glowing phone"
+    alt: "An illustrated lavender cat in a hoodie being patted on the head beside a glowing phone in a cheering stadium"
   },
   {
     number: "4",

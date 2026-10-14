@@ -57,7 +57,7 @@ const mids = [
   ];
 
   const imageSources = [
-    "/assets/img/elfa-ai.jpg",
+    "/assets/img/attention-cat.jpg",
     "/assets/img/market-opens.webp",
     "/assets/img/rising-chart.jpg",
     "/assets/img/no-gas-cat.jpg",
@@ -65,10 +65,10 @@ const mids = [
   ];
 
   const imageAlts = [
-    "An illustrated cat trading at a desk",
+    "An illustrated lavender cat in a hoodie trading Up and Down at a desk in a library",
     "World map with clocks in several time zones",
     "A glowing line chart rising through glass panes",
-    "An illustrated purple cat in a hoodie being patted on the head beside a glowing phone",
+    "An illustrated lavender cat in a hoodie being patted on the head beside a glowing phone in a cheering stadium",
     "A collage of market thumbnails",
   ];
 
