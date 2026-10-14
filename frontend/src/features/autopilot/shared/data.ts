@@ -8,6 +8,7 @@ import { BOT_ADDRESS } from "@/lib/bot";
 import { ApiError, autopilot, type Grant, history, perplApi, social } from "@/lib/api";
 import { publicClient } from "@/lib/chain/client";
 import { DEPLOYMENT } from "@/lib/config";
+import { type PerplMarketList, perplMarketsQuery } from "@/lib/perpl-markets";
 
 /** Queries for Autopilot, copy-trading and the caller screens, keyed by account. */
 
@@ -15,12 +16,10 @@ export { BOT_ADDRESS };
 export const isBot = (address: string | null | undefined) => Boolean(address) && address!.toLowerCase() === BOT_ADDRESS;
 
 /** Perpl's open markets with their full specs (leverage cap, maintenance margin). */
+const openMarkets = (list: PerplMarketList) => ({ markets: list.markets.filter((m) => m.isOpen) });
+
 export function usePerplMarkets() {
-  return useQuery({
-    queryKey: ["perpl-markets-full"],
-    queryFn: async () => ({ markets: (await perplApi.markets()).markets.filter((m) => m.isOpen) }),
-    staleTime: 600_000,
-  });
+  return useQuery({ ...perplMarketsQuery, select: openMarkets });
 }
 
 /** Perpl's live mark price for a market, every few seconds. */

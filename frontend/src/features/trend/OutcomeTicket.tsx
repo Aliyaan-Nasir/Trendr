@@ -22,7 +22,7 @@ import { AmountField, Note, Section, SubmitButton, useNow } from "./ticket";
 /**
  * Up or down on a trend's attention: each series asks whether the index closes above where it
  * opened. Up and Down trade on Kuru; a pair of one Up and one Down always mints and redeems for
- * exactly 1 AUSD, and the winning side pays 1 AUSD at settlement.
+ * exactly 1 AUSD, and each winning token pays 1 AUSD at settlement.
  */
 
 const DECIMALS = 6;
@@ -266,7 +266,7 @@ function Trade({ trend, series: s, up, down, initialSide, onFilled, onFinal }: {
       </SubmitButton>
       <TxStatus tx={tx} filledLabel={mode === "buy" ? "Bought" : "Sold"} testId="outcome-tx" />
       <Note>
-        {sideName} pays 1 AUSD if attention closes {side === "up" ? "above" : "at or below"} {points(s.openingIndex)}, and nothing otherwise. Prices come from the Kuru order book and settle on Monad.
+        Each {sideName} token pays 1 AUSD if attention closes {side === "up" ? "above" : "at or below"} {points(s.openingIndex)}, and nothing otherwise. Prices come from the Kuru order book and settle on Monad.
       </Note>
       {trend.status !== "active" ? <Note tone="warn">This trend is {trend.status}: new pairs cannot be minted, but the books stay open until the series closes.</Note> : null}
     </div>

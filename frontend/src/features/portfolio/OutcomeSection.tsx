@@ -31,7 +31,7 @@ export function OutcomeSection({ holdings, total }: { holdings: OutcomeHolding[]
   return (
     <>
       {holdings.length > 0 ? (
-        <SectionCard id="outcomes-title" testId="outcome-section" title="Up or down" count={holdings.length} subtitle="Outcome tokens on each trend's attention. A pair of UP and DOWN always redeems for 1 AUSD; the winning side pays 1 AUSD at settlement." total={total === null ? "-" : ausd(total)}>
+        <SectionCard id="outcomes-title" testId="outcome-section" title="Up or down" count={holdings.length} subtitle="Outcome tokens on each trend's attention. A pair of UP and DOWN always redeems for 1 AUSD; each winning token pays 1 AUSD at settlement and each losing token nothing." total={total === null ? "-" : ausd(total)}>
           <ul className="relative divide-y divide-line border-t border-line">
             <AnimatePresence initial={false} mode="popLayout">
               {sorted.map((h) => (

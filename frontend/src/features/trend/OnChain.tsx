@@ -31,8 +31,8 @@ export default function OnChain({ trend }: { trend: Trend }) {
     { label: "Attention index", note: "TrendRegistry, written by the CRE oracle", address: DEPLOYMENT.trendRegistry },
     ...(current
       ? [
-          { label: "Up token", note: "Current series, pays 1 AUSD if Up wins", address: current.up, token: true },
-          { label: "Down token", note: "Current series, pays 1 AUSD if Down wins", address: current.down, token: true },
+          { label: "Up token", note: "Current series, each pays 1 AUSD if Up wins", address: current.up, token: true },
+          { label: "Down token", note: "Current series, each pays 1 AUSD if Down wins", address: current.down, token: true },
           ...(current.listed && current.upMarket !== zeroAddress ? [{ label: "Up order book", note: "Kuru market", address: current.upMarket }] : []),
           ...(current.listed && current.downMarket !== zeroAddress ? [{ label: "Down order book", note: "Kuru market", address: current.downMarket }] : []),
         ]

@@ -12,7 +12,7 @@ import PerpTicket from "./PerpTicket";
 type Tab = "outcome" | "perp" | "coin" | "perpl";
 
 const BLURB: Record<Tab, string> = {
-  outcome: "Up or down on attention by a deadline. Pays 1 AUSD if you are right.",
+  outcome: "Up or down on attention by a deadline. Each token pays 1 AUSD if you are right.",
   perp: "Long or short the index itself, up to 3x, open as long as you like.",
   coin: "This trend's coin on a bonding curve, graduating to its own Kuru market.",
   perpl: "Perpetuals on the asset's market price, on Perpl.",

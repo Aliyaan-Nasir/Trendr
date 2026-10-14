@@ -4,6 +4,7 @@ import { attentionPerpAbi, bondingCurveAbi, type OrderBook, type PriceBand, toPr
 import type { PerplMarket } from "@trendr/perpl";
 import { type Address, BaseError, ContractFunctionRevertedError, erc20Abi, type Hex, parseAbi, zeroAddress } from "viem";
 import { perplApi } from "@/lib/api";
+import { perplMarketsQuery } from "@/lib/perpl-markets";
 import { publicClient } from "@/lib/chain/client";
 import { DEPLOYMENT } from "@/lib/config";
 import { INDEX_SCALE, readBook, readCurve, readPerpl, readPerpMarket, readPerpPositions, readSeries, tokenBalances } from "@/lib/trade/reads";
@@ -151,7 +152,7 @@ export function useKuruParams(market: Address | undefined) {
 
 /** Perpl's market for a ticker, if Perpl lists it. */
 export function usePerplMarket(ticker: string | null) {
-  const markets = useQuery({ queryKey: ["perpl-markets-full"], queryFn: () => perplApi.markets(), staleTime: 600_000 });
+  const markets = useQuery(perplMarketsQuery);
   const market = ticker ? (markets.data?.markets.find((m) => m.symbol.toUpperCase() === ticker.toUpperCase() && m.isOpen) ?? null) : null;
   const minimums = markets.data?.minAccountOpen !== undefined ? { accountOpen: BigInt(markets.data.minAccountOpen), deposit: BigInt(markets.data.minDeposit ?? "0") } : null;
   return { market, minimums, isLoading: markets.isLoading };

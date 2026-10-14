@@ -3,12 +3,13 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import type { PerplMarket } from "@trendr/perpl";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAccount } from "@/lib/account/AccountProvider";
-import { autopilot, type IndexedOutcomeHolding, perplApi, type RuleDetail, type StoredRule, trends as trendsApi } from "@/lib/api";
+import { autopilot, type IndexedOutcomeHolding, type RuleDetail, type StoredRule, trends as trendsApi } from "@/lib/api";
 import { useHead } from "@/lib/chain/client";
 import { useAusdBalance } from "@/lib/hooks/queries";
 import { readCuration } from "@/lib/trade/reads";
 import { indexedOutcomesQuery } from "./cost-basis";
 import { portfolioKey } from "./keys";
+import { type PerplMarketList, perplMarketsQuery } from "@/lib/perpl-markets";
 import { indexedSeries, readCoinHoldings, readOutcomeHoldings, readPerpHoldings, readPerplHoldings } from "./reads";
 
 /**
@@ -30,20 +31,10 @@ export function useAllTrends() {
 }
 
 /** Perpl's full market specs from the backend (Perpl's own API may refuse browser origins). */
+const allMarkets = (list: PerplMarketList): PerplMarket[] => list.markets;
+
 export function usePerplMarkets() {
-  return useQuery({
-    queryKey: ["perpl-markets-full"],
-    staleTime: 600_000,
-    queryFn: async (): Promise<PerplMarket[]> => {
-      try {
-        return (await perplApi.markets()).markets;
-      } catch {
-        // Older backends: the Autopilot list has what reading positions needs.
-        const { markets } = await autopilot.markets();
-        return markets.map((m) => ({ ...m, maintenanceMargin: 0, defaultMnp: 0, maxSlippageBps: 0, orderTtlBlocks: 20, isOpen: true }));
-      }
-    },
-  });
+  return useQuery({ ...perplMarketsQuery, select: allMarkets });
 }
 
 const seriesOf = (rows: readonly IndexedOutcomeHolding[]) => indexedSeries(rows);
