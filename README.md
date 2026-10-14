@@ -20,7 +20,13 @@
 
 </div>
 
-<!-- Demo videos: add the technical and pitch demo buttons here once the links exist. -->
+https://github.com/user-attachments/assets/88de66c4-3c00-44a9-a875-8f4a582881d3
+
+<div align="center">
+
+<a href="https://youtu.be/sdKZvvC8EGU"><img src="https://img.shields.io/badge/Watch-Technical%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the technical demo"></a> <a href="https://youtu.be/VmYvADNbI5k"><img src="https://img.shields.io/badge/Watch-Pitch-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the pitch"></a>
+
+</div>
 
 ## What is Trendr
 
@@ -36,6 +42,8 @@ The contracts are live and verified on Monad Testnet, and the app, the website a
 |---|---|
 | **App** | [app.trendr.bid](https://app.trendr.bid), on a phone, tablet or computer (Monad Testnet) |
 | **Website** | [trendr.bid](https://trendr.bid) |
+| **Technical demo** | [youtu.be/sdKZvvC8EGU](https://youtu.be/sdKZvvC8EGU): the whole app, end to end |
+| **Pitch** | [youtu.be/VmYvADNbI5k](https://youtu.be/VmYvADNbI5k): the problem, the product and the business |
 | **Status** | [app.trendr.bid/status](https://app.trendr.bid/status): the services, the oracle's freshness and the chain head |
 | **API** | [api.trendr.bid/v1/trends](https://api.trendr.bid/v1/trends): the live trends and their index |
 
