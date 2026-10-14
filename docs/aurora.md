@@ -4,6 +4,8 @@ Trendr's collateral is AUSD on Monad Mainnet, and most people who want to trade 
 Aurora Intents (built on NEAR Intents and 1Click) moves value from about 35 chains into Monad, and `packages/aurora` (`@trendr/aurora`) is Trendr's integration with it.
 This page explains what each Aurora product does in Trendr, the exact endpoints, the deposit and refund lifecycle, the AUSD conversion, what was verified live and what still needs a real deposit.
 
+<a href="https://youtu.be/NZQp8klvgY4"><img src="https://img.shields.io/badge/Watch-Aurora%20Intents%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Aurora Intents demo"></a>
+
 ## What each product does in Trendr
 
 **Swap API (one-time deposit).**

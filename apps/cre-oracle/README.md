@@ -3,6 +3,8 @@
 A Chainlink CRE workflow that measures attention for every live trend, discovers new trends, and sends one signed report per run to TrendRegistry on Monad.
 The index formula is in [docs/index-method.md](docs/index-method.md).
 
+<a href="https://youtu.be/jtUkh8LfNBA"><img src="https://img.shields.io/badge/Watch-Chainlink%20CRE%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Chainlink CRE demo"></a>
+
 ## Run
 
 ```bash

@@ -3,6 +3,8 @@
 This note describes the asset class Trendr brings to Kuru's spot order book, how it is issued, settled and redeemed, how its markets get liquidity from the first block, the legal and operational posture, and the roadmap.
 Everything described as live runs on Monad Testnet today; addresses are in `contracts/deployments/10143.json`.
 
+<a href="https://youtu.be/mc7PBCgdvfM"><img src="https://img.shields.io/badge/Watch-Kuru%20new%20assets%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Kuru new assets demo"></a> <a href="https://youtu.be/XofUz5aQKAo"><img src="https://img.shields.io/badge/Watch-Kuru%20consumer%20trading%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Kuru consumer trading demo"></a>
+
 ## The asset class
 
 An attention contract is a fully collateralized binary claim on whether public attention to a topic rises.

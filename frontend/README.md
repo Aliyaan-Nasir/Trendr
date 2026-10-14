@@ -6,6 +6,8 @@ It also hosts Autopilot rules, copy trading, the portfolio, social calls and the
 Built with Next.js 16, React 19 and Tailwind CSS 4.
 The [root README](../README.md) explains the project as a whole.
 
+<a href="https://youtu.be/s655VVCYKDU"><img src="https://img.shields.io/badge/Watch-Agora%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Agora demo"></a> <a href="https://vimeo.com/1235660693"><img src="https://img.shields.io/badge/Watch-Mera%20UX%20demo-1AB7EA?style=for-the-badge&logo=vimeo&logoColor=white" alt="Watch the Mera UX demo"></a> <a href="https://youtu.be/pzx9mT-draQ"><img src="https://img.shields.io/badge/Watch-Mera%20One%20Passkey%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Mera One Passkey demo"></a>
+
 ## Setup
 
 ```bash

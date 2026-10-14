@@ -6,6 +6,8 @@ At the head it follows new blocks over RPC (`ENVIO_RPC_URL_10143`), because Mona
 Fallback RPCs (`ENVIO_RPC_FALLBACK_URL_10143`, then `ENVIO_RPC_LAST_RESORT_URL_10143`) take over when that RPC stalls.
 [Following the head](#following-the-head) explains the envio patch this relies on.
 
+<a href="https://youtu.be/adKENjS74To"><img src="https://img.shields.io/badge/Watch-Envio%20demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the Envio demo"></a>
+
 ## What it indexes
 
 - TrendRegistry: trends, every attention index observation, status changes, settlement values and CRE oracle runs.
