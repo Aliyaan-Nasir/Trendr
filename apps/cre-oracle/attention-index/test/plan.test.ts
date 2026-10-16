@@ -108,4 +108,18 @@ describe("plan", () => {
     ]);
     expect(d.newTrends[0]?.index).toBe(12_000_000n);
   });
+
+  test("a kept (pinned) crypto topic lists without smart-money inflow, and only a pinned one", () => {
+    const d = decide(
+      [],
+      [
+        { candidate: { ...candidate("crypto:eth", 0), pinned: true }, identifier: "crypto:eth.3", m: { points: 30, netflowUsd: -281_000 } },
+        { candidate: candidate("crypto:sol", 0), identifier: "crypto:sol", m: { points: 30, netflowUsd: -281_000 } },
+        // A pin never lifts the attention floor.
+        { candidate: { ...candidate("crypto:dot", 0), pinned: true }, identifier: "crypto:dot", m: { points: 4.99, netflowUsd: null } },
+      ],
+      params,
+    );
+    expect(d.newTrends.map((t) => [t.identifier, t.smartMoneyConfirmed])).toEqual([["crypto:eth.3", true]]);
+  });
 });

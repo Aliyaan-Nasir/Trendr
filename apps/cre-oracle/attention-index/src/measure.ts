@@ -73,13 +73,21 @@ function ok(res: { status: number; body: string }, what: string): string {
  * `perRun`, the number of candidates a run samples, so consecutive runs walk the queue in its
  * ranked order and every candidate is measured within a few runs.
  */
+/** What discovery agrees on: the candidates to try and the live trends being rotated out. */
+export interface Discovered {
+  candidates: candidates.Candidate[];
+  rotating: string[];
+}
+
 export function discover(send: Send, cfg: Config, s: Secrets, runAt: number, perRun = cfg.discovery.maxCandidatesPerRun): string {
   const active = activeSources(cfg, s);
   const lists: candidates.Candidate[][] = [];
+  let rotating: string[] = [];
   if (active.candidatesUrl) {
     try {
-      const res = send(candidates.candidatesRequest(cfg.discovery.candidatesUrl, s.backendToken));
-      lists.push(candidates.parseCandidates(ok(res, "candidates")));
+      const body = ok(send(candidates.candidatesRequest(cfg.discovery.candidatesUrl, s.backendToken)), "candidates");
+      lists.push(candidates.parseCandidates(body));
+      rotating = candidates.parseRotating(body);
     } catch {
       // The queue is optional: seeds and trending still apply.
     }
@@ -101,7 +109,7 @@ export function discover(send: Send, cfg: Config, s: Secrets, runAt: number, per
   const max = cfg.discovery.maxCandidatesPerRun * 3;
   // Each run moves the window by the candidates it samples, so the windows tile the queue.
   const rotation = runNumber(runAt, cfg.schedule) * Math.max(1, perRun);
-  return JSON.stringify(candidates.canonicalCandidates(lists, max, rotation));
+  return JSON.stringify({ candidates: candidates.canonicalCandidates(lists, max, rotation), rotating } satisfies Discovered);
 }
 
 /** Field names for slot `k`: points, smart-money flow and whether the flow is known. */

@@ -100,7 +100,8 @@ export interface DecideParams {
  * observation at or after expiry settles it, so it must be a fresh measurement). Trends that were
  * not measured are never re-reported with an old value. A report that goes out also carries
  * sampled trends past half their heartbeat. Candidates become trends at or above
- * `minCreateIndexPoints`, and crypto candidates also need smart-money net inflow.
+ * `minCreateIndexPoints`, and crypto candidates also need smart-money net inflow unless an admin kept
+ * the topic (pinned).
  */
 export function decide(
   sampled: ReadonlyArray<{ trend: LiveTrend; m: Measurement }>,
@@ -124,7 +125,8 @@ export function decide(
   for (const { candidate, identifier, m } of candidates) {
     if (m.points === null || m.points < p.minCreateIndexPoints) continue;
     const crypto = candidate.assetClass === CRYPTO;
-    const confirmed = m.netflowUsd !== null && m.netflowUsd >= p.minConfirmNetflowUsd;
+    // A topic an admin kept live lists again without smart-money inflow: the pin vouches for it.
+    const confirmed = candidate.pinned === true || (m.netflowUsd !== null && m.netflowUsd >= p.minConfirmNetflowUsd);
     if (crypto && !confirmed) continue;
     out.newTrends.push({
       identifier,

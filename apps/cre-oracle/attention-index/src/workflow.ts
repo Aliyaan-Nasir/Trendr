@@ -22,6 +22,7 @@ import { articleFor, CRYPTO, keywordsFor, MAX_VERSION, tickerOf, versioned } fro
 import {
   anyAttentionSource,
   discover,
+  type Discovered,
   fields,
   fixedCalls,
   MISSING,
@@ -105,13 +106,24 @@ export function onCron(runtime: Runtime<Config>, payload: CronPayload): string {
 
   // 2. Discovery, identical on every node. Runs take turns through the queue, a run's worth of
   // candidates at a time.
-  const room = Math.max(0, cfg.discovery.maxLiveTrends - snapshot.live.length);
-  const perRun = Math.min(cfg.discovery.maxCandidatesPerRun, room);
-  const discovered: Candidate[] = JSON.parse(
+  const windowRoom = Math.max(0, cfg.discovery.maxLiveTrends - snapshot.live.length);
+  const found: Discovered = JSON.parse(
     runtime
-      .runInNodeMode((node: NodeRuntime<Config>) => discover(nodeSend(node), cfg, secrets, now, perRun), consensusIdenticalAggregation<string>())()
+      .runInNodeMode(
+        (node: NodeRuntime<Config>) => discover(nodeSend(node), cfg, secrets, now, Math.min(cfg.discovery.maxCandidatesPerRun, windowRoom)),
+        consensusIdenticalAggregation<string>(),
+      )()
       .result(),
   );
+  const discovered = found.candidates;
+  // Trends the backend is rotating out are left unmeasured, so the registry retires them as stale,
+  // and their slots are free for the queue now.
+  const liveNames = readIdentifiers(call, lens, snapshot.live.map((t) => t.id));
+  const rotatingOut = new Set(found.rotating);
+  const keep = snapshot.live.filter((_, i) => !rotatingOut.has(liveNames[i] ?? ""));
+  const nameOf = new Map(snapshot.live.map((t, i) => [t.id, liveNames[i] ?? ""]));
+  const room = Math.max(0, cfg.discovery.maxLiveTrends - keep.length);
+  const perRun = Math.min(cfg.discovery.maxCandidatesPerRun, room);
   const listable = resolveListings(call, lens, discovered);
 
   // 3. Plan the run within the HTTP budget.
@@ -120,13 +132,13 @@ export function onCron(runtime: Runtime<Config>, payload: CronPayload): string {
   const slots = sampleSlots(fixedCalls(cfg, secrets, anyCrypto), perTargetCalls(cfg, secrets), cfg.sampling.maxSamplesPerRun);
   if (slots === 0) return "skip: the HTTP budget leaves no room to measure";
   const plan = allocate(
-    snapshot.live,
+    keep,
     listable.map((l) => l.candidate),
     slots,
     perRun,
   );
   const planned = listable.filter((l) => plan.candidates.includes(l.candidate));
-  const names = readIdentifiers(call, lens, plan.trends.map((t) => t.id));
+  const names = plan.trends.map((t) => nameOf.get(t.id) ?? "");
   const targets: Target[] = [
     ...plan.trends.map((_, i) => target(names[i] ?? "", [], cfg)),
     ...planned.map((l) => target(l.identifier, l.candidate.keywords, cfg)),
@@ -166,7 +178,7 @@ export function onCron(runtime: Runtime<Config>, payload: CronPayload): string {
     },
   );
   const tried = planned.length > 0 ? `; tried ${planned.map((l) => l.identifier).join(", ")}` : "";
-  const summary = `run ${now}: ${decisions.newTrends.length} new, ${decisions.updates.length} updates, ${decisions.settlements.length} settlements (sampled ${targets.length} of ${snapshot.live.length} live, ${discovered.length} candidates${tried})`;
+  const summary = `run ${now}: ${decisions.newTrends.length} new, ${decisions.updates.length} updates, ${decisions.settlements.length} settlements (sampled ${targets.length} of ${snapshot.live.length} live, ${snapshot.live.length - keep.length} rotating out, ${discovered.length} candidates${tried})`;
   if (isEmpty(decisions)) return `nothing to report; ${summary}`;
 
   const report = runtime.report(prepareReportRequest(encodeReport(BigInt(now), BigInt(now), decisions))).result();

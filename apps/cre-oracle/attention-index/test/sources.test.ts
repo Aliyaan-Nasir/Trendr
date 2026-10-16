@@ -78,6 +78,22 @@ describe("sources", () => {
     expect(merged[0]?.keywords).toEqual(["World Cup"]);
   });
 
+  test("the rotating list is optional, string-only and bounded", () => {
+    expect(candidates.parseRotating(JSON.stringify({ candidates: [] }))).toEqual([]);
+    expect(candidates.parseRotating(JSON.stringify({ candidates: [], rotating: "topic:a.2" }))).toEqual([]);
+    expect(candidates.parseRotating(JSON.stringify({ candidates: [], rotating: ["topic:a.2", 7, "", "person:b"] }))).toEqual(["topic:a.2", "person:b"]);
+    expect(candidates.parseRotating(JSON.stringify({ rotating: Array.from({ length: 80 }, (_, i) => `topic:t${i}`) }))).toHaveLength(50);
+  });
+
+  test("pinned topics form a tier ahead of the queue, first in every turn", () => {
+    const parsed = candidates.parseCandidates(JSON.stringify({ candidates: [{ identifier: "topic:a" }, { identifier: "topic:b" }, { identifier: "crypto:eth", pinned: true }, { identifier: "topic:c", pinned: "yes" }] }));
+    expect(parsed.find((c) => c.identifier === "crypto:eth")?.pinned).toBe(true);
+    expect(parsed.find((c) => c.identifier === "topic:a")?.pinned).toBeUndefined();
+    for (const rotation of [0, 1, 2, 7]) {
+      expect(candidates.canonicalCandidates([parsed], 10, rotation)[0]?.identifier).toBe("crypto:eth");
+    }
+  });
+
   test("rotation turns each tier in its own order and keeps the tiers' precedence", () => {
     const queue = ["topic:c", "topic:a", "topic:b"].map((x, i) => ({ ...candidates.toCandidate(x)!, priority: candidates.PRIORITY_QUEUE + i / 100_000 }));
     const seeds = ["topic:s1", "topic:s2"].map((x) => candidates.toCandidate(x)!);

@@ -89,17 +89,27 @@ describe("measure in direct mode", () => {
 
   test("discovery merges seeds and trending into canonical JSON", () => {
     const json = discover(fakeSend().send, directCfg, all, 0);
-    const ids = (JSON.parse(json) as Array<{ identifier: string }>).map((c) => c.identifier);
+    const ids = (JSON.parse(json) as { candidates: Array<{ identifier: string }> }).candidates.map((c) => c.identifier);
     expect(ids.indexOf("topic:monad")).toBeLessThan(ids.indexOf("crypto:mon"));
     expect(discover(fakeSend().send, directCfg, all, 0)).toBe(json);
   });
+});
+
+test("discovery passes the backend's rotating list through, and an older backend means none", () => {
+  const cfg = { ...directCfg, discovery: { ...directCfg.discovery, candidatesUrl: "https://api.example/v1/oracle/candidates" } };
+  const withList = JSON.stringify({ candidates: [{ identifier: "topic:a" }], rotating: ["topic:old.2"] });
+  const found = JSON.parse(discover(() => ({ status: 200, body: withList }), cfg, none, 0)) as { candidates: Array<{ identifier: string }>; rotating: string[] };
+  expect(found.rotating).toEqual(["topic:old.2"]);
+  expect(found.candidates.map((c) => c.identifier)).toContain("topic:a");
+  const older = JSON.stringify({ candidates: [{ identifier: "topic:a" }] });
+  expect((JSON.parse(discover(() => ({ status: 200, body: older }), cfg, none, 0)) as { rotating: string[] }).rotating).toEqual([]);
 });
 
 describe("candidate order", () => {
   const queueOf = (ids: string[]) => JSON.stringify({ candidates: ids.map((identifier) => ({ identifier })) });
   /** The candidates a run samples first: its window of `take` from the rotated queue. */
   const sampled = (cfg: Config, body: string, runAt: number, take: number) =>
-    (JSON.parse(discover(() => ({ status: 200, body }), cfg, none, runAt, take)) as Array<{ identifier: string }>).slice(0, take).map((c) => c.identifier);
+    (JSON.parse(discover(() => ({ status: 200, body }), cfg, none, runAt, take)) as { candidates: Array<{ identifier: string }> }).candidates.slice(0, take).map((c) => c.identifier);
 
   test("the backend's queue takes turns in its ranked order", () => {
     const ranked = ["topic:z", "crypto:eth", "topic:a", "topic:m", "topic:b"];
@@ -137,7 +147,7 @@ describe("candidate order", () => {
     const seeds = ["a", "b", "c", "d", "e", "f", "g", "h"].map((x) => ({ identifier: `topic:${x}` }));
     const cfg = configSchema.parse({ ...testnet, discovery: { ...testnet.discovery, candidatesUrl: "", maxCandidatesPerRun: 2, seedCandidates: seeds } });
     const send = () => ({ status: 404, body: "" });
-    const firstTwo = (runAt: number) => (JSON.parse(discover(send, cfg, none, runAt)) as Array<{ identifier: string }>).slice(0, 2).map((c) => c.identifier);
+    const firstTwo = (runAt: number) => (JSON.parse(discover(send, cfg, none, runAt)) as { candidates: Array<{ identifier: string }> }).candidates.slice(0, 2).map((c) => c.identifier);
     const seen = new Set<string>();
     for (let run = 0; run < 4; run++) for (const id of firstTwo(NOW + run * 60)) seen.add(id);
     expect(seen.size).toBe(8);

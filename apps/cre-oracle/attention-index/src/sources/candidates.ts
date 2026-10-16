@@ -16,8 +16,14 @@ export interface Candidate {
   surfacer: string;
   /** Sampling order: explicit proposals before discovered ones (lower first). */
   priority: number;
+  /**
+   * Kept live by an admin and waiting to list again: tried before the queue, and a crypto one
+   * lists without smart-money inflow (the pin vouches for it).
+   */
+  pinned?: boolean;
 }
 
+export const PRIORITY_PINNED = -1;
 export const PRIORITY_QUEUE = 0;
 export const PRIORITY_SEED = 1;
 export const PRIORITY_TRENDING = 2;
@@ -31,6 +37,7 @@ const candidateSchema = z.object({
     .string()
     .regex(/^0x[0-9a-fA-F]{40}$/)
     .optional(),
+  pinned: z.boolean().optional(),
 });
 
 export function candidatesRequest(url: string, token: string): HttpRequest {
@@ -39,7 +46,7 @@ export function candidatesRequest(url: string, token: string): HttpRequest {
   return { url, method: "GET", headers };
 }
 
-/** Parses `{ candidates: [{ identifier, keywords?, surfacer? }] }` in the backend's ranked order, dropping invalid rows. */
+/** Parses `{ candidates: [{ identifier, keywords?, surfacer?, pinned? }] }` in the backend's ranked order, dropping invalid rows. */
 export function parseCandidates(body: string): Candidate[] {
   const json = JSON.parse(body) as { candidates?: unknown };
   if (!Array.isArray(json.candidates)) throw new Error("candidates: malformed response");
@@ -47,11 +54,24 @@ export function parseCandidates(body: string): Candidate[] {
   for (const raw of json.candidates) {
     const parsed = candidateSchema.safeParse(raw);
     if (!parsed.success) continue;
-    // The backend ranks its queue; the fraction keeps that order inside the queue tier.
-    const c = toCandidate(parsed.data.identifier, parsed.data.keywords, parsed.data.surfacer, PRIORITY_QUEUE + out.length / 100_000);
-    if (c) out.push(c);
+    // The backend ranks its queue; the fraction keeps that order inside each tier. Pinned topics
+    // form their own tier ahead of the queue, so every run tries them first.
+    const pinned = parsed.data.pinned === true;
+    const c = toCandidate(parsed.data.identifier, parsed.data.keywords, parsed.data.surfacer, (pinned ? PRIORITY_PINNED : PRIORITY_QUEUE) + out.length / 100_000);
+    if (c) out.push(pinned ? { ...c, pinned } : c);
   }
   return out;
+}
+
+/**
+ * Live trends the backend is rotating out (on-chain identifiers, `<base>.<n>`): the workflow stops
+ * updating them, so the registry retires them as stale, and counts their slots as free. Optional:
+ * an older backend omits the field and nothing rotates.
+ */
+export function parseRotating(body: string): string[] {
+  const json = JSON.parse(body) as { rotating?: unknown };
+  if (!Array.isArray(json.rotating)) return [];
+  return json.rotating.filter((r): r is string => typeof r === "string" && r.length > 0 && r.length <= 64).slice(0, 50);
 }
 
 export function toCandidate(
@@ -90,7 +110,7 @@ export function fromTrendingTokens(tokens: readonly TrendingToken[], max: number
 /**
  * Deduplicates by identifier (the highest-priority proposal wins), orders by priority then
  * identifier, rotates each tier by `rotation`, and caps: identical output on every node. Tiers
- * keep their precedence (the backend's queue, then seeds, then trending tokens). Inside a tier the
+ * keep their precedence (pinned topics, the backend's queue, then seeds, then trending tokens). Inside a tier the
  * rotation walks the candidates in their order, so the backend's ranking decides who goes first in
  * each turn, and every candidate takes a turn: a few at the head that never qualify cannot hold a
  * run's slots.

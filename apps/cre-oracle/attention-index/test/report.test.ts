@@ -33,6 +33,19 @@ describe("report", () => {
     expect(gasLimit(decisions, g)).toBe(118);
     expect(gasLimit(decisions, { ...g, max: 110 })).toBe(110);
   });
+
+  // Each update appends a checkpoint, two to a storage slot, so every other update pays for a fresh
+  // slot. On 2026-10-14 a 13-update report sized at 52k an update ran out of gas inside onReport
+  // (the forwarder swallowed it, so every later report failed the same way until the trends retired):
+  // the worst case measured was about 55k an update, the forwarder's overhead included.
+  test("the configs fit a report updating every live trend at the worst measured cost", async () => {
+    const worstPerUpdate = 55_000;
+    for (const name of ["testnet", "mainnet"]) {
+      const cfg = (await Bun.file(`${import.meta.dir}/../config.${name}.json`).json()) as { discovery: { maxLiveTrends: number }; gas: Parameters<typeof gasLimit>[1] };
+      const full: Decisions = { newTrends: [], settlements: [], updates: Array.from({ length: cfg.discovery.maxLiveTrends }, () => decisions.updates[0]!) };
+      expect(gasLimit(full, cfg.gas)).toBeGreaterThanOrEqual(Math.ceil(cfg.discovery.maxLiveTrends * worstPerUpdate * 1.2));
+    }
+  });
 });
 
 describe("contracts fixture", () => {

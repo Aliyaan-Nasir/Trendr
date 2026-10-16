@@ -243,10 +243,10 @@
       "maxCandidates": 2
     },
     "maxCandidatesPerRun": 2,
-    "maxLiveTrends": 13
+    "maxLiveTrends": 20
   },
   "sampling": {
-    "maxSamplesPerRun": 13,
+    "maxSamplesPerRun": 20,
     "heartbeatSec": 420,
     "deviationBps": 100,
     "minCreateIndexPoints": 5
@@ -275,7 +275,7 @@
   "gas": {
     "base": 150000,
     "perNewTrend": 230000,
-    "perUpdate": 52000,
+    "perUpdate": 70000,
     "perSettlement": 60000,
     "max": 6000000
   }

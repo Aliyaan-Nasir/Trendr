@@ -267,7 +267,7 @@
   "gas": {
     "base": 150000,
     "perNewTrend": 230000,
-    "perUpdate": 52000,
+    "perUpdate": 70000,
     "perSettlement": 60000,
     "max": 6000000
   }

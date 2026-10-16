@@ -251,4 +251,57 @@ describe("onCron", () => {
     const [r] = decodeAbiParameters(REPORT_ABI, writes[0]!.payload);
     expect(r.newTrends).toHaveLength(0);
   });
+
+  test("a trend the backend rotates out is left unmeasured and its slot lists the queue", () => {
+    const capped = configSchema.parse({ ...testnet, discovery: { ...testnet.discovery, maxLiveTrends: 2 } });
+    const rows: Row[] = [
+      { identifier: "topic:alpha", index: 40_000_000n, updatedAt: BigInt(NOW - 600) },
+      // Due for its heartbeat and a settlement: it would be reported if it were not rotating out.
+      { identifier: "topic:faded.2", index: 12_000_000n, updatedAt: BigInt(NOW - 3_000), pendingExpiry: BigInt(NOW - 5) },
+    ];
+    const candidates = JSON.stringify({ candidates: [{ identifier: "topic:new" }], rotating: ["topic:faded.2"] });
+    const measurements = collectorMeasurements(NOW, { "topic:alpha": { elfa: 3_000 }, "topic:faded": { elfa: 100 }, "topic:new": { elfa: 3_000 } });
+    const { writes, urls } = setup(rows, 0n, {}, { "/v1/oracle/candidates": candidates, "/v1/oracle/measurements": measurements });
+    const runtime = newTestRuntime(secrets({ BACKEND_TOKEN: "tok" }), {}, capped);
+    expect(onCron(runtime as never, payload)).toContain("1 rotating out");
+    expect(urls[1]).not.toContain("faded");
+    const [r] = decodeAbiParameters(REPORT_ABI, writes[0]!.payload);
+    expect(r.newTrends.map((t) => t.identifier)).toEqual(["topic:new"]);
+    expect(r.updates.map((u) => u.id)).not.toContain(id("topic:faded.2"));
+    expect(r.settlements).toHaveLength(0);
+  });
+
+  test("a kept (pinned) crypto topic takes the free slot first, without smart-money inflow", () => {
+    const capped = configSchema.parse({ ...testnet, discovery: { ...testnet.discovery, maxLiveTrends: 2 } });
+    const rows: Row[] = [
+      { identifier: "topic:alpha", index: 40_000_000n, updatedAt: BigInt(NOW - 600) },
+      { identifier: "topic:faded.2", index: 12_000_000n, updatedAt: BigInt(NOW - 3_000) },
+    ];
+    // Ranked after two queue candidates, yet tried first; smart money is selling it.
+    const candidates = JSON.stringify({
+      candidates: [{ identifier: "topic:new" }, { identifier: "topic:other" }, { identifier: "crypto:eth", keywords: ["Ethereum"], pinned: true }],
+      rotating: ["topic:faded.2"],
+    });
+    const measurements = collectorMeasurements(NOW, {
+      "topic:alpha": { elfa: 3_000 },
+      "topic:new": { elfa: 3_000 },
+      "topic:other": { elfa: 3_000 },
+      "crypto:eth": { elfa: 3_000, nansen: -281_000 },
+    });
+    const { writes } = setup(rows, 0n, {}, { "/v1/oracle/candidates": candidates, "/v1/oracle/measurements": measurements });
+    onCron(newTestRuntime(secrets({ BACKEND_TOKEN: "tok" }), {}, capped) as never, payload);
+    const [r] = decodeAbiParameters(REPORT_ABI, writes[0]!.payload);
+    expect(r.newTrends.map((t) => [t.identifier, t.smartMoneyConfirmed])).toEqual([["crypto:eth", true]]);
+  });
+
+  test("an unpinned crypto candidate still needs smart-money inflow", () => {
+    const capped = configSchema.parse({ ...testnet, discovery: { ...testnet.discovery, maxLiveTrends: 2 } });
+    const rows: Row[] = [{ identifier: "topic:alpha", index: 40_000_000n, updatedAt: BigInt(NOW - 600) }];
+    const candidates = JSON.stringify({ candidates: [{ identifier: "crypto:eth", keywords: ["Ethereum"] }] });
+    const measurements = collectorMeasurements(NOW, { "topic:alpha": { elfa: 3_000 }, "crypto:eth": { elfa: 3_000, nansen: -281_000 } });
+    const { writes } = setup(rows, 0n, {}, { "/v1/oracle/candidates": candidates, "/v1/oracle/measurements": measurements });
+    onCron(newTestRuntime(secrets({ BACKEND_TOKEN: "tok" }), {}, capped) as never, payload);
+    const newTrends = writes.flatMap((w) => decodeAbiParameters(REPORT_ABI, w.payload)[0].newTrends);
+    expect(newTrends).toHaveLength(0);
+  });
 });
