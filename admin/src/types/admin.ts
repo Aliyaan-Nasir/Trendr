@@ -419,3 +419,45 @@ export interface SystemReport {
   wallets: { treasury: Treasury | null; rows: WalletRow[] };
   errors: RecentError[];
 }
+
+/** One rotation: a faded live trend making room for a stronger approved candidate. */
+export interface RotationRow {
+  id: number;
+  identifier: string;
+  base: string;
+  trendId: string;
+  replacement: string | null;
+  reason: string;
+  status: "rotating" | "done" | "cancelled";
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export interface BoardTrend {
+  identifier: string;
+  base: string;
+  displayName: string | null;
+  status: string;
+  index: number;
+  peakIndex: number;
+  ageSec: number;
+  pinned: boolean;
+  rotatingOut: boolean;
+  /** Its mentions over the last day, as the queue counts them. */
+  mentions: number;
+  /** Which rotation rules it meets now; `weaker` is fewer mentions than the strongest candidate waiting. */
+  meets: { age: boolean; faded: boolean; belowMedian: boolean; weaker: boolean };
+}
+
+export interface RotationBoard {
+  rules: { enabled: boolean; maxLive: number; minAgeSec: number; fadeRatio: number; timeoutSec: number; listGraceSec: number; cooldownSec: number };
+  median: number | null;
+  /** The approved candidate with the most mentions, the bar a live trend must fall under. */
+  strongest: { identifier: string; mentions: number } | null;
+  /** Kept topics not live now: they list again first, crypto without smart-money inflow. */
+  keptWaiting: string[];
+  active: RotationRow | null;
+  recent: RotationRow[];
+  live: BoardTrend[];
+}
+

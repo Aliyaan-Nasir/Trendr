@@ -81,7 +81,7 @@ export function SortableTable<T>({
                     <button
                       type="button"
                       onClick={() => toggle(c.key)}
-                      className={`-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors hover:text-fg ${active ? "text-fg" : ""} ${c.align === "right" ? "flex-row-reverse" : ""}`}
+                      className={`-mx-1 inline-flex items-center gap-1 whitespace-nowrap rounded px-1 transition-colors hover:text-fg ${active ? "text-fg" : ""} ${c.align === "right" ? "flex-row-reverse" : ""}`}
                     >
                       {c.label}
                       <Icon size={12} aria-hidden className={active ? "" : "opacity-50"} />

@@ -11,6 +11,7 @@ import { candidatesKey } from "@/src/modules/candidates/queries";
 const LINKS = [
   { href: "/system", label: "System" },
   { href: "/candidates", label: "Candidates" },
+  { href: "/rotation", label: "Live board" },
   { href: "/operations", label: "Operations" },
   { href: "/waitlist", label: "Waitlist" },
 ] as const;

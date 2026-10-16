@@ -1,6 +1,6 @@
 import { sessionRejected, sessionToken } from "@/src/lib/auth/session";
 import { BACKEND_URL } from "@/src/lib/config";
-import type { Candidate, CandidateStatus, DecisionRequest, ElfaReport, Health, JobName, ServiceDetail, SystemReport, TrendsResponse, WaitlistPage } from "@/src/types/admin";
+import type { Candidate, CandidateStatus, DecisionRequest, ElfaReport, Health, JobName, RotationBoard, ServiceDetail, SystemReport, TrendsResponse, WaitlistPage } from "@/src/types/admin";
 
 /** A failed backend call. `status` is 0 when the backend could not be reached at all. */
 export class ApiError extends Error {
@@ -112,4 +112,13 @@ export const api = {
 
   /** Every signup as CSV. */
   waitlistCsv: () => adminFile("/v1/admin/waitlist.csv"),
+
+  /** The live board: rotation rules, the running rotation, recent ones and each live trend. */
+  rotation: () => admin<RotationBoard>("GET", "/v1/admin/rotation"),
+
+  /** Keeps a trend live (rotation never picks it), or lets it rotate again. */
+  pin: (identifier: string, pinned: boolean) => admin<{ identifier: string; pinned: boolean }>("POST", "/v1/admin/pins", { identifier, pinned }),
+
+  /** Calls off the running rotation; the oracle resumes updating the trend. */
+  cancelRotation: () => admin<{ cancelled: string }>("POST", "/v1/admin/rotation/cancel"),
 };
