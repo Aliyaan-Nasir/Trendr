@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownToLine, ChevronRight, ExternalLink, Fingerprint, History, Plus, Radar } from "lucide-react";
+import { ArrowDownToLine, ChevronRight, Fingerprint, History, Plus, Radar } from "lucide-react";
 import { AnimatePresence, m } from "framer-motion";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
@@ -9,12 +9,12 @@ import { action, useActivity } from "@/features/portfolio/activity";
 import { useAccount } from "@/lib/account/AccountProvider";
 import { autopilot, type Trend } from "@/lib/api";
 import { AUSD_DECIMALS } from "@/lib/config";
-import { useEdgeFade } from "@/lib/edges";
 import { ago, ausd, tokenNumber } from "@/lib/format";
 import { useAusdBalance, useTrends, useUpcoming } from "@/lib/hooks/queries";
 import { useSheets } from "@/lib/sheets";
 import { WaitlistRow } from "@/features/waitlist/Waitlist";
 import { baseIdentifier, trendName } from "@/lib/trends";
+import { RadarStrip } from "@/features/radar/RadarStrip";
 import { TrendCard, TrendCardSkeleton } from "./TrendCard";
 
 type Filter = "all" | "crypto" | "person" | "topic" | "markets";
@@ -44,7 +44,6 @@ export default function Home() {
   const openSheet = useSheets((s) => s.open);
   // Each trend renders twice (a pager on phones, a grid wider); only the visible copy morphs.
   const wide = useMedia("(min-width: 640px)");
-  const fade = useEdgeFade();
 
   const list = useMemo(() => {
     const rows = (trends.data?.trends ?? []).filter((t) => matches(t, filter));
@@ -130,38 +129,7 @@ export default function Home() {
           )}
         </Reveal>
       </section>
-      {upcoming.data && upcoming.data.candidates.length > 0 ? (
-        <section aria-labelledby="upcoming-title" className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Radar className="size-[18px] text-primary" aria-hidden />
-            <h2 id="upcoming-title" className="font-strong text-[15px] text-text">
-              On the radar
-            </h2>
-            <span className="text-[13px] text-text-3">Measuring attention before listing</span>
-          </div>
-          <div {...fade} className="edge-fade no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {upcoming.data.candidates.slice(0, 12).map((c) => (
-              <div key={c.id} className="flex w-[240px] shrink-0 flex-col rounded-2xl border border-dashed border-line-strong bg-surface p-4" data-testid="radar-candidate">
-                <p className="line-clamp-1 font-strong text-[14px] text-text">{c.displayName}</p>
-                <p className="mt-1 line-clamp-2 text-[12.5px] leading-[18px] text-text-2">{c.summary ?? c.identifier}</p>
-                {c.attribution ? (
-                  // CoinGecko's free API asks for this credit wherever its data shows.
-                  <a
-                    href={c.attribution.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-auto inline-flex items-center gap-1 self-start pt-2.5 text-[11.5px] leading-4 text-text-3 transition-colors hover:text-text"
-                    data-testid="radar-attribution"
-                  >
-                    {c.attribution.text}
-                    <ExternalLink className="size-3 shrink-0" aria-hidden />
-                  </a>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {upcoming.data && upcoming.data.candidates.length > 0 ? <RadarStrip radar={upcoming.data} /> : null}
     </div>
   );
 }

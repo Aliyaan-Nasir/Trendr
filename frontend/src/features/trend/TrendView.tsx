@@ -67,6 +67,7 @@ function Loaded({ detail }: { detail: TrendDetail }) {
   return (
     <div className="flex flex-col gap-6">
       {relisted ? <Relisted identifier={relisted} /> : null}
+      {!relisted && trend.rotatingOut && trend.status !== "retired" ? <RotatingOut /> : null}
       <div className="grid gap-6 [grid-template-areas:'chart'_'trade'_'sources'_'thread'] lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_auto_1fr] lg:[grid-template-areas:'chart_trade'_'sources_trade'_'thread_trade']">
         <div className="flex min-w-0 flex-col gap-4 [grid-area:chart]">
           <IndexCard detail={detail} />
@@ -246,6 +247,19 @@ const SOURCES: Record<SourceName, { label: string; unit: string; note: string }>
   nansen: { label: "Smart money", unit: "net flow", note: "24h net buying, Nansen" },
   hn: { label: "Hacker News", unit: "mentions", note: "24h stories and comments" },
 };
+
+/** The backend is rotating this trend out for a fresher one: no new rounds, open ones settle soon. */
+function RotatingOut() {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--warn-soft)] bg-warn-soft px-4 py-3.5 text-[13.5px] leading-5 text-text" data-testid="rotating-out">
+      <RotateCcw className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
+      <span>
+        <span className="font-strong">Rotating out.</span>{" "}
+        <span className="text-text-2">Attention here has faded, so this trend is making room for a newer one. No new rounds open, and open rounds settle at its last index within about two hours.</span>
+      </span>
+    </div>
+  );
+}
 
 /** A retired listing whose topic is live again under a new listing. */
 function Relisted({ identifier }: { identifier: string }) {

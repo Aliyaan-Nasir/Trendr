@@ -13,7 +13,7 @@ export const PUSH_TOPICS: ReadonlyArray<{ value: PushTopic; label: string; hint:
   { value: "autopilot", label: "Autopilot", hint: "Your rules open, close, pause or hit a limit" },
   { value: "copy", label: "Copy trading", hint: "A leader you follow trades, or a copy is skipped" },
   { value: "calls", label: "Calls", hint: "Your calls resolve as hits or misses" },
-  { value: "markets", label: "Markets", hint: "Trends you trade move sharply or settle" },
+  { value: "markets", label: "Markets", hint: "Trends you trade move or settle, and trends you watch go live" },
 ];
 
 const TOPICS_KEY = "trendr.push.topics";

@@ -48,6 +48,8 @@ export interface Trend {
   change24h?: number | null;
   /** Hourly index values over the last 24 hours (list only). */
   spark?: number[];
+  /** The backend is rotating this trend out to make room: its rounds settle at its last index (older APIs omit it). */
+  rotatingOut?: boolean;
 }
 
 export interface TrendDetail {
@@ -71,12 +73,33 @@ export interface Candidate {
   surfacer: string;
   status: string;
   createdAt: string;
+  /** Place in the oracle's queue (1 lists first), or null while it has no usable reading (older APIs omit it). */
+  queue?: number | null;
+  /** The signal that surfaced it ("Bluesky trending", 1,315 posts). */
+  signal?: { label: string; count: number | null; unit: string | null } | null;
+  /** Attention measured so far: mentions in the last day on X's scale, Bluesky posts, Wikipedia views, news articles, Hacker News. */
+  readings?: { mentions: number | null; bluesky: number | null; wikipedia: number | null; news: number | null; hn: number | null };
+  /** The last two days of its strongest source, oldest first. */
+  spark?: number[];
+  /** Percent change across `spark`, or null with too little history. */
+  heating?: number | null;
+  /** Accounts waiting to hear when it lists. */
+  watchers?: number;
+}
+
+export interface Radar {
+  /** Live trends and the oracle's cap (older APIs omit it). */
+  slots?: { live: number; max: number };
+  candidates: Candidate[];
 }
 
 export const trends = {
   list: (all = false) => api<{ lastRunId: number; trends: Trend[] }>(`/v1/trends${all ? "?all=1" : ""}`),
   get: (identifier: string) => api<TrendDetail>(`/v1/trends/${encodeURIComponent(identifier)}`),
-  upcoming: () => api<{ candidates: Candidate[] }>("/v1/candidates"),
+  upcoming: () => api<Radar>("/v1/candidates"),
+  /** Signed in: the candidates this account waits on. */
+  watching: () => api<{ ids: number[] }>("/v1/candidates/watching", { auth: true }),
+  watch: (id: number, on: boolean) => api<{ watching: boolean }>(`/v1/candidates/${id}/watch`, { method: on ? "POST" : "DELETE", auth: true }),
   thread: (identifier: string) => api<{ posts: Post[]; calls: Call[] }>(`/v1/trends/${encodeURIComponent(identifier)}/thread`),
 };
 
