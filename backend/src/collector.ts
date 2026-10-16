@@ -10,7 +10,8 @@ import type { Nansen } from "./sources/nansen";
 import { BudgetError } from "./sources/http";
 import { PacedError } from "./sources/pacer";
 import { lastCompleteDay, type Wikipedia } from "./sources/wikipedia";
-import { READING_MAX_AGE_SEC } from "./queue";
+import { rankQueue, READING_MAX_AGE_SEC } from "./queue";
+import { pickRotation, type RotationRules } from "./rotation";
 import type { Reading, SourceName, Store } from "./store";
 
 /**
@@ -28,7 +29,23 @@ import type { Reading, SourceName, Store } from "./store";
  * number of trends, so the day's credits last the whole day, and credits are held back for the radar.
  */
 
+/** Time the oracle needs to update a trend again after a rotation is called off, before the registry would retire it. */
+const RESUME_MARGIN_SEC = 15 * 60;
+
 export interface CollectorConfig {
+  /** Rotation (see rotation.ts); absent, nothing rotates. */
+  rotation?: RotationRules & {
+    /** A rotation still live after this long is called off (the registry retires a stale trend after 2 h on Testnet). */
+    timeoutSec: number;
+    /** A new trend must take the slot within this long, or the rotation is called off and the trend stays. */
+    listGraceSec: number;
+    /** The registry's `staleRetireWindow`: a rotation is called off only while the oracle can still update the trend in time. */
+    staleWindowSec: number;
+    /** After a rotation is called off, the next one waits this long. */
+    cooldownSec: number;
+    /** Net smart-money inflow a crypto candidate needs, as the workflow requires. */
+    confirmNetflowUsd: number;
+  };
   elfaRefreshSec: number;
   gdeltRefreshSec: number;
   nansenRefreshSec: number;
@@ -82,6 +99,8 @@ export interface CollectorReport {
   requeued: string[];
   /** Topics whose trend faded on chain: out of the queue for good. */
   retired: string[];
+  /** The rotation this tick started, finished or is waiting on, if any. */
+  rotation: string | null;
   notes: string[];
 }
 
@@ -163,11 +182,13 @@ export class Collector {
     const out = { requeued: [] as string[], retired: [] as string[] };
     if (live.length === 0) return out;
     const staleWindow = await this.chain.staleRetireWindow();
+    // A trend rotated out went stale on purpose: its topic made room, so it retires too.
+    const rotated = this.cfg.rotation ? await this.store.rotatedIdentifiers() : new Set<string>();
     for (const c of live) {
       const listings = trends.filter((t) => baseOf(t.identifier) === c.identifier);
       if (listings.length === 0 || listings.some((t) => t.status !== "Retired")) continue;
       const last = listings.reduce((a, b) => (b.createdAt > a.createdAt || (b.createdAt === a.createdAt && b.identifier > a.identifier) ? b : a));
-      const stale = last.statusSince - last.updatedAt >= staleWindow;
+      const stale = last.statusSince - last.updatedAt >= staleWindow && !rotated.has(last.identifier);
       if (!(await this.store.unlist(c.id, stale ? "approved" : "retired"))) continue;
       out[stale ? "requeued" : "retired"].push(c.identifier);
       this.log.info({ identifier: c.identifier, trend: last.identifier, stale }, stale ? "trend retired stale; candidate back in the queue" : "trend faded; candidate retired");
@@ -175,13 +196,72 @@ export class Collector {
     return out;
   }
 
+  /**
+   * One rotation step: finishes the running rotation once its trend retired, else starts one when
+   * `pickRotation` finds a faded trend and a stronger candidate. The board never shrinks for a
+   * rotation: if no new trend has taken the slot within `listGraceSec` (the workflow lists a
+   * candidate only at its minimum index, and crypto only with smart-money inflow), the rotation is
+   * called off while the oracle can still update the trend before the registry retires it, and the
+   * next one waits `cooldownSec`. Returns what it did or is waiting on, for the report.
+   */
+  async rotate(nowSec = Math.floor(Date.now() / 1000)): Promise<string | null> {
+    const rules = this.cfg.rotation;
+    if (!rules) return null;
+    const [active, trends] = await Promise.all([this.store.activeRotation(), this.chain.trends()]);
+    if (active) {
+      const t = trends.find((x) => x.identifier === active.identifier);
+      if (!t || t.status === "Retired" || t.status === "None") {
+        await this.store.finishRotation(active.id, "done");
+        this.log.info({ identifier: active.identifier, replacement: active.replacement }, "rotation finished: trend retired");
+        return `rotated out ${active.identifier}`;
+      }
+      const elapsed = nowSec - Math.floor(active.startedAt.getTime() / 1000);
+      const holding = trends.filter((x) => (x.status === "Active" || x.status === "Cooling") && x.identifier !== active.identifier).length;
+      if (holding < rules.maxLive && elapsed >= rules.listGraceSec && nowSec - t.updatedAt < rules.staleWindowSec - RESUME_MARGIN_SEC) {
+        await this.store.finishRotation(active.id, "cancelled", "no new trend took its slot");
+        this.log.warn({ identifier: active.identifier, holding }, "rotation called off: no new trend took its slot");
+        return `rotation of ${active.identifier} called off: no new trend took its slot`;
+      }
+      if (elapsed > rules.timeoutSec) {
+        await this.store.finishRotation(active.id, "cancelled", "timed out");
+        this.log.warn({ identifier: active.identifier }, "rotation called off: the trend did not retire in time");
+        return `rotation of ${active.identifier} timed out`;
+      }
+      return `rotating out ${active.identifier}`;
+    }
+    const live = trends.filter((t) => t.status === "Active" || t.status === "Cooling");
+    if (live.length < rules.maxLive) return null;
+    const [last] = await this.store.rotations(1);
+    if (last?.status === "cancelled" && last.finishedAt && nowSec - Math.floor(last.finishedAt.getTime() / 1000) < rules.cooldownSec) return null;
+    const [approved, pins] = await Promise.all([this.store.candidates("approved", 500), this.store.pins()]);
+    if (approved.length === 0) return null;
+    const latest = await this.store.latest([...new Set([...approved.map((c) => c.identifier), ...live.map((t) => baseOf(t.identifier))])]);
+    const ready = rankQueue(approved, latest, { nowSec, confirmNetflowUsd: rules.confirmNetflowUsd, tradable: new Set(), pinned: pins });
+    const pick = pickRotation(trends, ready, latest, pins, rules, nowSec);
+    if (!pick) return null;
+    const started = await this.store.startRotation({
+      identifier: pick.trend.identifier,
+      base: baseOf(pick.trend.identifier),
+      trendId: pick.trend.id,
+      replacement: pick.replacement.identifier,
+      reason: pick.reason,
+    });
+    if (!started) return null;
+    this.log.info({ identifier: pick.trend.identifier, replacement: pick.replacement.identifier, reason: pick.reason }, "rotation started");
+    return `rotating out ${pick.trend.identifier} for ${pick.replacement.identifier}`;
+  }
+
   async tick(nowMs = Date.now()): Promise<CollectorReport> {
     // Retirements first, so a topic back in the queue is tracked, and measured, from this tick on.
     const { requeued, retired } = await this.syncRetirements();
     const listed = await this.syncListings();
+    const rotation = await this.rotate(Math.floor(nowMs / 1000)).catch((e: Error) => {
+      this.log.warn({ error: e.message.slice(0, 200) }, "rotation step failed");
+      return null;
+    });
     const tracked = await this.tracked();
     const latest = await this.store.latest(tracked.map((t) => t.identifier));
-    const report: CollectorReport = { tracked: tracked.length, measured: {}, failed: {}, elfaIntervalSec: 0, listed, requeued, retired, notes: [] };
+    const report: CollectorReport = { tracked: tracked.length, measured: {}, failed: {}, elfaIntervalSec: 0, listed, requeued, retired, rotation, notes: [] };
     const now = new Date(nowMs);
     const age = (t: Tracked, s: SourceName) => {
       const r: Reading | undefined = latest.get(t.identifier)?.[s];

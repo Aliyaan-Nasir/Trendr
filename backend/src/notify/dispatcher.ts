@@ -108,6 +108,28 @@ export class Dispatcher {
       });
     }
     if (calls.length > 0) await this.setCursor("calls", Number(calls.at(-1)!.id));
+
+    // "Notify me when it lists": a watched candidate that listed tells each account waiting on it,
+    // once, under the markets topic (an account that turned markets off hears nothing).
+    const listed = await this.sql<{ candidate_id: string; account: string; display_name: string; identifier: string }[]>`
+      SELECT w.candidate_id, w.account, c.display_name, COALESCE(m.identifier, c.identifier) AS identifier
+        FROM candidate_watches w
+        JOIN candidates c ON c.id = w.candidate_id
+        LEFT JOIN LATERAL (
+          SELECT identifier FROM trend_meta WHERE identifier = c.identifier OR identifier LIKE c.identifier || '.%'
+           ORDER BY updated_at DESC LIMIT 1
+        ) m ON true
+       WHERE w.notified_at IS NULL AND c.status = 'live'
+       ORDER BY w.created_at LIMIT 500`;
+    for (const w of listed) {
+      notified += await this.push.notify(w.account, "markets", {
+        title: `${w.display_name} is live on Trendr`,
+        body: "Its market just opened. Trade it before the crowd.",
+        url: `/t/${w.identifier}`,
+        tag: `listed-${w.candidate_id}`,
+      });
+      await this.sql`UPDATE candidate_watches SET notified_at = now() WHERE candidate_id = ${w.candidate_id} AND account = ${w.account}`;
+    }
     return { notified };
   }
 }

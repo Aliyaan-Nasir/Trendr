@@ -742,6 +742,8 @@ export interface SystemDeps {
   };
   /** The backend's own RPC endpoints (the URLs stay here; only providers are reported). */
   rpcUrls: readonly string[];
+  /** On-chain identifiers being rotated out: their index goes stale on purpose, so they are not counted stale. */
+  rotating?: () => Promise<ReadonlySet<string>>;
   indexer: { progress(): Promise<IndexerProgress | null>; oracle(nowSec?: number): Promise<IndexedOracle> } | null;
   elfa: (() => Promise<ElfaInputs>) | null;
   elfaLimits: { dailyPerKey: number; monthlyPerKey: number };
@@ -852,8 +854,10 @@ export class SystemMonitor {
       error: head.ok ? null : head.error,
     };
     const live = trends.ok ? trends.value.filter((t) => t.status === "Active" || t.status === "Cooling") : null;
+    const rotatingOut = d.rotating ? await d.rotating().catch(() => new Set<string>()) : new Set<string>();
+    const measured = live ? live.filter((t) => !rotatingOut.has(t.identifier)) : null;
     const lastRunAt = lastRun.ok && lastRun.value > 0n ? Number(lastRun.value) * 1000 : null;
-    const oldest = live && live.length > 0 ? Math.min(...live.map((t) => t.updatedAt)) : null;
+    const oldest = measured && measured.length > 0 ? Math.min(...measured.map((t) => t.updatedAt)) : null;
 
     // Services: each probe, then the backend itself.
     const services: ServiceReport[] = [];
@@ -922,7 +926,7 @@ export class SystemMonitor {
     }
 
     const lastRunAgeSec = lastRunAt !== null ? Math.max(0, Math.round((nowMs - lastRunAt) / 1000)) : null;
-    const staleTrends = live ? live.filter((t) => nowSec - t.updatedAt > d.oracleStaleSec).length : null;
+    const staleTrends = measured ? measured.filter((t) => nowSec - t.updatedAt > d.oracleStaleSec).length : null;
     const oracle: SystemReport["oracle"] = {
       ok: lastRunAgeSec !== null && lastRunAgeSec <= d.oracleStaleSec && (staleTrends ?? 0) === 0,
       lastRunAt,

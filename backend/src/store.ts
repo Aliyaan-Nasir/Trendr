@@ -113,6 +113,42 @@ const toCandidate = (r: CandidateRow): Candidate => ({
   updatedAt: r.updated_at,
 });
 
+export interface Rotation {
+  id: number;
+  identifier: string;
+  base: string;
+  trendId: string;
+  replacement: string | null;
+  reason: string;
+  status: "rotating" | "done" | "cancelled";
+  startedAt: Date;
+  finishedAt: Date | null;
+}
+
+interface RotationRow {
+  id: string;
+  identifier: string;
+  base: string;
+  trend_id: string;
+  replacement: string | null;
+  reason: string;
+  status: Rotation["status"];
+  started_at: Date;
+  finished_at: Date | null;
+}
+
+const toRotation = (r: RotationRow): Rotation => ({
+  id: Number(r.id),
+  identifier: r.identifier,
+  base: r.base,
+  trendId: r.trend_id,
+  replacement: r.replacement,
+  reason: r.reason,
+  status: r.status,
+  startedAt: r.started_at,
+  finishedAt: r.finished_at,
+});
+
 export class Store {
   constructor(readonly sql: Sql) {}
 
@@ -201,6 +237,97 @@ export class Store {
   async unlist(id: number, to: "approved" | "retired"): Promise<boolean> {
     const rows = await this.sql`UPDATE candidates SET status = ${to}, updated_at = now() WHERE id = ${id} AND status = 'live' RETURNING id`;
     return rows.length > 0;
+  }
+
+  /** The rotation in progress, if any (at most one). */
+  async activeRotation(): Promise<Rotation | null> {
+    const rows = await this.sql<RotationRow[]>`SELECT * FROM rotations WHERE status = 'rotating' LIMIT 1`;
+    return rows[0] ? toRotation(rows[0]) : null;
+  }
+
+  /** Starts a rotation; null when one is already running (the unique index holds one at a time). */
+  async startRotation(r: { identifier: string; base: string; trendId: string; replacement: string | null; reason: string }): Promise<Rotation | null> {
+    const rows = await this.sql<RotationRow[]>`
+      INSERT INTO rotations (identifier, base, trend_id, replacement, reason)
+      VALUES (${r.identifier}, ${r.base}, ${r.trendId}, ${r.replacement}, ${r.reason})
+      ON CONFLICT DO NOTHING RETURNING *`;
+    return rows[0] ? toRotation(rows[0]) : null;
+  }
+
+  async finishRotation(id: number, status: "done" | "cancelled", note?: string): Promise<boolean> {
+    const rows = await this.sql`
+      UPDATE rotations SET status = ${status}, finished_at = now(),
+        reason = CASE WHEN ${note ?? null}::text IS NULL THEN reason ELSE reason || ' (' || ${note ?? ""} || ')' END
+       WHERE id = ${id} AND status = 'rotating' RETURNING id`;
+    return rows.length > 0;
+  }
+
+  async rotations(limit = 20): Promise<Rotation[]> {
+    const rows = await this.sql<RotationRow[]>`SELECT * FROM rotations ORDER BY started_at DESC LIMIT ${limit}`;
+    return rows.map(toRotation);
+  }
+
+  /** On-chain identifiers that rotated out or are rotating out (their topics retire, never requeue). */
+  async rotatedIdentifiers(): Promise<Set<string>> {
+    const rows = await this.sql<{ identifier: string }[]>`SELECT identifier FROM rotations WHERE status IN ('rotating', 'done')`;
+    return new Set(rows.map((r) => r.identifier));
+  }
+
+  /** Base identifiers an admin keeps live. */
+  async pins(): Promise<Set<string>> {
+    const rows = await this.sql<{ identifier: string }[]>`SELECT identifier FROM trend_pins`;
+    return new Set(rows.map((r) => r.identifier));
+  }
+
+  async setPin(base: string, pinned: boolean, by: string): Promise<void> {
+    if (pinned) await this.sql`INSERT INTO trend_pins (identifier, pinned_by) VALUES (${base}, ${by.toLowerCase()}) ON CONFLICT (identifier) DO NOTHING`;
+    else await this.sql`DELETE FROM trend_pins WHERE identifier = ${base}`;
+  }
+
+  /** "Notify me when it lists": only approved candidates can be watched. */
+  async watch(candidateId: number, account: string): Promise<boolean> {
+    const rows = await this.sql`
+      INSERT INTO candidate_watches (candidate_id, account)
+      SELECT id, ${account.toLowerCase()} FROM candidates WHERE id = ${candidateId} AND status = 'approved'
+      ON CONFLICT DO NOTHING RETURNING candidate_id`;
+    return rows.length > 0 || (await this.watching(account)).has(candidateId);
+  }
+
+  async unwatch(candidateId: number, account: string): Promise<void> {
+    await this.sql`DELETE FROM candidate_watches WHERE candidate_id = ${candidateId} AND account = ${account.toLowerCase()} AND notified_at IS NULL`;
+  }
+
+  /** The candidates an account is waiting on (not yet notified). */
+  async watching(account: string): Promise<Set<number>> {
+    const rows = await this.sql<{ candidate_id: string }[]>`
+      SELECT candidate_id FROM candidate_watches WHERE account = ${account.toLowerCase()} AND notified_at IS NULL`;
+    return new Set(rows.map((r) => Number(r.candidate_id)));
+  }
+
+  /** How many accounts wait on each candidate. */
+  async watchCounts(ids: readonly number[]): Promise<Map<number, number>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.sql<{ candidate_id: string; n: number }[]>`
+      SELECT candidate_id, count(*)::int AS n FROM candidate_watches
+       WHERE candidate_id = ANY(${this.sql.array(ids.map(String))}::bigint[]) AND notified_at IS NULL GROUP BY candidate_id`;
+    return new Map(rows.map((r) => [Number(r.candidate_id), r.n]));
+  }
+
+  /** Readings since `sinceSec` for many identifiers at once, oldest first (radar sparklines). */
+  async historyMany(identifiers: readonly string[], sources: readonly SourceName[], sinceSec: number): Promise<Map<string, Array<{ source: SourceName; value: number; observedAt: number }>>> {
+    const out = new Map<string, Array<{ source: SourceName; value: number; observedAt: number }>>();
+    if (identifiers.length === 0) return out;
+    const rows = await this.sql<{ identifier: string; source: SourceName; value: number; observed_at: Date }[]>`
+      SELECT identifier, source, value, observed_at FROM measurements
+       WHERE identifier = ANY(${this.sql.array([...identifiers])}) AND source = ANY(${this.sql.array([...sources])})
+         AND observed_at >= to_timestamp(${sinceSec})
+       ORDER BY observed_at`;
+    for (const r of rows) {
+      const list = out.get(r.identifier) ?? [];
+      list.push({ source: r.source, value: r.value, observedAt: Math.floor(r.observed_at.getTime() / 1000) });
+      out.set(r.identifier, list);
+    }
+    return out;
   }
 
   async upsertTrendMeta(m: TrendMeta): Promise<void> {

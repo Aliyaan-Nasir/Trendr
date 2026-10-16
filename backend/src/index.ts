@@ -139,6 +139,19 @@ const collector = new Collector(
   chain,
   { elfa: elfa && elfaRing ? { client: elfa, ring: elfaRing } : null, gdelt, nansen, wikipedia, bluesky, hn },
   {
+    rotation:
+      cfg.ROTATION === "on"
+        ? {
+            maxLive: cfg.MAX_LIVE_TRENDS,
+            minAgeSec: cfg.ROTATION_MIN_AGE_SEC,
+            fadeRatio: cfg.ROTATION_FADE_RATIO,
+            timeoutSec: cfg.ROTATION_TIMEOUT_SEC,
+            listGraceSec: cfg.ROTATION_LIST_GRACE_SEC,
+            staleWindowSec: cfg.ROTATION_STALE_WINDOW_SEC,
+            cooldownSec: cfg.ROTATION_COOLDOWN_SEC,
+            confirmNetflowUsd: cfg.CRYPTO_CONFIRM_NETFLOW_USD,
+          }
+        : undefined,
     elfaRefreshSec: cfg.ELFA_REFRESH_SEC,
     gdeltRefreshSec: cfg.GDELT_REFRESH_SEC,
     gdeltCandidateRefreshSec: cfg.GDELT_CANDIDATE_REFRESH_SEC,
@@ -184,6 +197,10 @@ const system = new SystemMonitor({
   chainId: cfg.CHAIN_ID,
   services: cfg.systemServices,
   oracleStaleSec: cfg.ORACLE_STALE_SEC,
+  rotating: async () => {
+    const r = await store.activeRotation();
+    return new Set(r ? [r.identifier] : []);
+  },
   jobIntervals: { collector: cfg.COLLECT_INTERVAL_SEC, radar: cfg.RADAR_INTERVAL_SEC, history: cfg.HISTORY_INTERVAL_SEC, calls: 60, notify: 15 },
   refreshSec: {
     elfa: cfg.ELFA_REFRESH_SEC,

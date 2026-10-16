@@ -114,7 +114,7 @@ afterAll(async () => {
   await sql.end();
 });
 beforeEach(async () => {
-  await sql`TRUNCATE candidates, trend_meta, measurements, link_requests, api_usage, push_subscriptions RESTART IDENTITY CASCADE`;
+  await sql`TRUNCATE candidates, trend_meta, measurements, link_requests, api_usage, push_subscriptions, rotations, trend_pins RESTART IDENTITY CASCADE`;
   oembed = { author_name: "SpaceX", html: "<p>Starlink goes mobile</p>" };
   prompts.length = 0;
 });
@@ -161,12 +161,13 @@ describe("oracle endpoints", () => {
       decidedBy: "radar",
     });
     const auth = { headers: { authorization: `Bearer ${TOKEN}` } };
-    expect(await (await app.request("/v1/oracle/candidates", auth)).json()).toEqual({ candidates: [] });
+    expect(await (await app.request("/v1/oracle/candidates", auth)).json()).toEqual({ candidates: [], rotating: [] });
     await store.addMeasurement("topic:starlink-mobile", "elfa", "mentions", 300, 86_400, new Date(now));
     await store.addMeasurement("topic:openai", "wikipedia", "pageviews", 1000, 86_400, new Date(now - 10_000));
     await store.addMeasurement("topic:openai", "wikipedia", "pageviews", 2000, 86_400, new Date(now));
     expect(await (await app.request("/v1/oracle/candidates", auth)).json()).toEqual({
       candidates: [{ identifier: "topic:starlink-mobile", keywords: ["Starlink"], surfacer: "0x00000000000000000000000000000000000000aa" }],
+      rotating: [],
     });
     const m = (await (await app.request("/v1/oracle/measurements?ids=topic:openai.2,topic:unknown", auth)).json()) as {
       observedAt: number;
@@ -550,5 +551,114 @@ describe("migrations", () => {
     await migrate(sql);
     expect(await store.candidateByIdentifier("topic:injected")).toMatchObject({ status: "pending", decidedBy: null });
     expect(await store.candidateByIdentifier("topic:reviewed")).toMatchObject({ status: "approved", decidedBy: admin.address.toLowerCase() });
+  });
+});
+
+describe("rotation and the radar", () => {
+  const radarCandidate = (identifier: string, over: Record<string, unknown> = {}) =>
+    store.insertCandidate({
+      identifier,
+      displayName: "Pope Leo Surgery",
+      assetClass: 6,
+      keywords: ["Pope Leo"],
+      article: null,
+      ticker: null,
+      summary: "The Vatican announces surgery.",
+      source: "bluesky_trend",
+      sourceRef: { signal: { kind: "social", platform: "bluesky", postCount: 1315 } },
+      surfacer: "0x0000000000000000000000000000000000000000",
+      status: "approved",
+      confidence: 0.9,
+      ai: {},
+      decidedBy: "radar",
+      ...over,
+    } as never);
+
+  test("the oracle, the app and the keeper see the trend being rotated out", async () => {
+    await store.startRotation({ identifier: "topic:openai.2", base: "topic:openai", trendId: trends[0]!.id, replacement: "topic:next", reason: "test" });
+    const auth = { headers: { authorization: `Bearer ${TOKEN}` } };
+    expect(((await (await app.request("/v1/oracle/candidates", auth)).json()) as { rotating: string[] }).rotating).toEqual(["topic:openai.2"]);
+    expect(await (await app.request("/v1/rotation")).json()).toMatchObject({ rotating: ["topic:openai.2"], replacement: "topic:next" });
+    const listed = (await (await app.request("/v1/trends")).json()) as { trends: Array<{ identifier: string; rotatingOut: boolean }> };
+    expect(listed.trends.find((t) => t.identifier === "topic:openai.2")?.rotatingOut).toBe(true);
+    const one = (await (await app.request("/v1/trends/topic:openai.2")).json()) as { trend: { rotatingOut: boolean } };
+    expect(one.trend.rotatingOut).toBe(true);
+  });
+
+  test("admins pin a trend, which calls off its rotation, and read the board", async () => {
+    await store.startRotation({ identifier: "topic:openai.2", base: "topic:openai", trendId: trends[0]!.id, replacement: null, reason: "test" });
+    expect((await signed("POST", "/v1/admin/pins", JSON.stringify({ identifier: "topic:openai.2", pinned: true }), stranger)).status).toBe(401);
+    const res = await signed("POST", "/v1/admin/pins", JSON.stringify({ identifier: "topic:openai.2", pinned: true }));
+    expect(await res.json()).toEqual({ identifier: "topic:openai", pinned: true });
+    expect(await store.activeRotation()).toBeNull();
+    expect((await store.rotations())[0]?.reason).toContain("kept by an admin");
+    const board = (await (await signed("GET", "/v1/admin/rotation")).json()) as { rules: { maxLive: number }; live: Array<{ base: string; pinned: boolean; meets: Record<string, boolean> }> };
+    expect(board.rules.maxLive).toBe(20);
+    expect(board.live[0]).toMatchObject({ base: "topic:openai", pinned: true });
+    expect(Object.keys(board.live[0]!.meets).sort()).toEqual(["age", "belowMedian", "faded", "weaker"]);
+    expect(board).toHaveProperty("strongest");
+    // Only a live trend can be kept; unpinning anything works.
+    const notLive = await signed("POST", "/v1/admin/pins", JSON.stringify({ identifier: "crypto:eth", pinned: true }));
+    expect(notLive.status).toBe(409);
+    expect(await notLive.json()).toEqual({ error: "only a live trend can be kept" });
+    expect((await signed("POST", "/v1/admin/pins", JSON.stringify({ identifier: "crypto:eth", pinned: false }))).status).toBe(200);
+    await signed("POST", "/v1/admin/pins", JSON.stringify({ identifier: "topic:openai", pinned: false }));
+    expect((await store.pins()).size).toBe(0);
+    expect((await signed("POST", "/v1/admin/rotation/cancel")).status).toBe(404);
+  });
+
+  test("a kept topic waiting to list goes first in the oracle's feed, flagged, and shows on the board", async () => {
+    await radarCandidate("topic:pope-leo-surgery");
+    await radarCandidate("topic:kept-one");
+    for (const id of ["topic:pope-leo-surgery", "topic:kept-one"]) await store.addMeasurement(id, "elfa", "mentions", id === "topic:kept-one" ? 10 : 5_000, 86_400, new Date(now - 600_000));
+    // Kept while it was live; it retired and waits to list again.
+    await store.setPin("topic:kept-one", true, "0x00000000000000000000000000000000000000a1");
+    const auth = { headers: { authorization: `Bearer ${TOKEN}` } };
+    const feed = (await (await app.request("/v1/oracle/candidates", auth)).json()) as { candidates: Array<{ identifier: string; pinned?: boolean }> };
+    expect(feed.candidates.map((x) => [x.identifier, x.pinned ?? false])).toEqual([
+      ["topic:kept-one", true],
+      ["topic:pope-leo-surgery", false],
+    ]);
+    now += 1_000; // a fresh admin signature (the board was read signed at the same instant before)
+    const board = (await (await signed("GET", "/v1/admin/rotation")).json()) as { keptWaiting: string[] };
+    expect(board.keptWaiting).toEqual(["topic:kept-one"]);
+  });
+
+  test("the radar shows each waiting candidate's signal, attention, sparkline and queue place", async () => {
+    const { candidate: c } = await radarCandidate("topic:pope-leo-surgery");
+    await store.addMeasurement("topic:pope-leo-surgery", "elfa", "mentions", 100, 86_400, new Date(now - 40 * 3_600_000));
+    await store.addMeasurement("topic:pope-leo-surgery", "elfa", "mentions", 300, 86_400, new Date(now - 600_000));
+    await store.addMeasurement("topic:pope-leo-surgery", "bluesky", "posts", 40, 86_400, new Date(now - 600_000));
+    now += 60_000;
+    const body = (await (await app.request("/v1/candidates")).json()) as {
+      slots: { live: number; max: number };
+      candidates: Array<{ id: number; queue: number | null; signal: unknown; readings: Record<string, number | null>; spark: number[]; heating: number | null; watchers: number; confidence?: number }>;
+    };
+    expect(body.slots).toEqual({ live: 1, max: 20 });
+    const card = body.candidates.find((x) => x.id === c.id)!;
+    expect(card.signal).toEqual({ label: "Bluesky trending", count: 1315, unit: "posts" });
+    expect(card.readings).toMatchObject({ mentions: 300, bluesky: 40 });
+    expect(card.spark.length).toBeGreaterThanOrEqual(2);
+    expect(card.heating).toBe(200);
+    expect(card.queue).toBe(1);
+    expect(card.watchers).toBe(0);
+    // The AI's confidence stays admin-only.
+    expect(card.confidence).toBeUndefined();
+  });
+
+  test("a signed-in trader watches a waiting candidate, and only a waiting one", async () => {
+    const { candidate: c } = await radarCandidate("topic:watched");
+    const { candidate: pending } = await radarCandidate("topic:pending", { status: "pending" });
+    expect((await app.request(`/v1/candidates/${c.id}/watch`, { method: "POST" })).status).toBe(401);
+    const token = await signIn(linker);
+    const auth = { authorization: `Bearer ${token}` };
+    expect(await (await app.request(`/v1/candidates/${c.id}/watch`, { method: "POST", headers: auth })).json()).toEqual({ watching: true });
+    expect((await app.request(`/v1/candidates/${pending.id}/watch`, { method: "POST", headers: auth })).status).toBe(404);
+    expect(await (await app.request("/v1/candidates/watching", { headers: auth })).json()).toEqual({ ids: [c.id] });
+    now += 60_000;
+    const radar = (await (await app.request("/v1/candidates")).json()) as { candidates: Array<{ id: number; watchers: number }> };
+    expect(radar.candidates.find((x) => x.id === c.id)?.watchers).toBe(1);
+    await app.request(`/v1/candidates/${c.id}/watch`, { method: "DELETE", headers: auth });
+    expect(await (await app.request("/v1/candidates/watching", { headers: auth })).json()).toEqual({ ids: [] });
   });
 });

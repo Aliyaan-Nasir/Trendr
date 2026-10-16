@@ -26,11 +26,12 @@ import { ASSET_CLASSES, baseOf, isNormalized } from "../identifiers";
 import { LinkError, resolveLink } from "../links";
 import type { Log } from "../log";
 import { type Radar, SOURCE_ATTRIBUTION } from "../radar";
-import { rankQueue } from "../queue";
+import { mentionsOf, rankQueue } from "../queue";
+import { readingsOf, signalOf, SPARK_HOURS, SPARK_SOURCES, sparkOf } from "../radar-view";
 import type { Jobs } from "../jobs";
 import type { Gdelt } from "../sources/gdelt";
 import type { Fetch } from "../sources/http";
-import { type Candidate, type CandidateStatus, type Reading, SOURCES, type SourceName, type Store, type TrendMeta } from "../store";
+import { type Candidate, type CandidateStatus, type Reading, type Rotation, SOURCES, type SourceName, type Store, type TrendMeta } from "../store";
 import { ADMIN_SESSION_SEC, adminAuth, bearer, issueSession, tokenHash } from "./admin-auth";
 import { byIp, rateLimit } from "./rate-limit";
 import type { IndexerReader } from "../indexer";
@@ -248,14 +249,19 @@ export function createApp(d: AppDeps): Hono {
   // App reads.
   app.get("/v1/trends", async (c) => {
     const all = c.req.query("all") === "1";
-    const [trends, meta] = await Promise.all([d.chain.trends(), d.store.trendMeta()]);
+    const [trends, meta, rotation] = await Promise.all([d.chain.trends(), d.store.trendMeta(), d.store.activeRotation().catch(() => null)]);
     const shown = trends.filter((t) => all || t.status === "Active" || t.status === "Cooling");
     const [latest, summaries] = await Promise.all([d.store.latest(shown.map((t) => baseOf(t.identifier))), d.history.summaries(shown.map((t) => t.id), Math.floor(now() / 1000))]);
     return c.json({
       lastRunId: Number(await d.chain.lastRunId()),
       trends: shown.map((t) => {
         const s = summaries.get(t.id);
-        return { ...trendJson(t, meta.get(t.identifier) ?? meta.get(baseOf(t.identifier)), latest.get(baseOf(t.identifier))), change24h: s?.change ?? null, spark: s?.spark ?? [] };
+        return {
+          ...trendJson(t, meta.get(t.identifier) ?? meta.get(baseOf(t.identifier)), latest.get(baseOf(t.identifier))),
+          change24h: s?.change ?? null,
+          spark: s?.spark ?? [],
+          rotatingOut: rotation?.identifier === t.identifier,
+        };
       }),
     });
   });
@@ -274,7 +280,13 @@ export function createApp(d: AppDeps): Hono {
       trend.status === "Retired"
         ? all.filter((t) => t.identifier !== id && baseOf(t.identifier) === base && t.status !== "Retired").sort((a, b) => b.createdAt - a.createdAt)[0]
         : undefined;
-    return c.json({ trend: trendJson(trend, meta.get(id) ?? meta.get(base), latest.get(base)), index, history, relistedAs: relisted?.identifier ?? null });
+    const rotation = await d.store.activeRotation().catch(() => null);
+    return c.json({
+      trend: { ...trendJson(trend, meta.get(id) ?? meta.get(base), latest.get(base)), rotatingOut: rotation?.identifier === trend.identifier },
+      index,
+      history,
+      relistedAs: relisted?.identifier ?? null,
+    });
   });
 
   // History from the Envio indexer: track records, trade history, the trader leaderboard and trend stats.
@@ -311,9 +323,63 @@ export function createApp(d: AppDeps): Hono {
     return c.json({ stats: stats ?? null });
   });
 
+  // "On the radar": approved candidates waiting for a live slot, with the attention measured so far,
+  // a sparkline, the workflow's queue order and how many accounts wait on each. Cached briefly.
+  let radarCache: { at: number; body: unknown } | null = null;
   app.get("/v1/candidates", async (c) => {
-    const rows = await d.store.candidates("approved", 100);
-    return c.json({ candidates: rows.map((r) => candidateJson(r, false)) });
+    if (!radarCache || now() - radarCache.at > 30_000) {
+      const nowSec = Math.floor(now() / 1000);
+      const rows = await d.store.candidates("approved", 200);
+      const ids = rows.map((r) => r.identifier);
+      const [latest, history, watchers, trends] = await Promise.all([
+        d.store.latest(ids),
+        d.store.historyMany(ids, SPARK_SOURCES, nowSec - SPARK_HOURS * 3600),
+        d.store.watchCounts(rows.map((r) => r.id)),
+        d.chain.trends().catch(() => []),
+      ]);
+      const tradable = new Set((await d.autopilot.service.markets().catch(() => [])).map((m) => m.symbol.toUpperCase()));
+      const queue = rankQueue(rows, latest, { nowSec, confirmNetflowUsd: d.cfg.CRYPTO_CONFIRM_NETFLOW_USD, tradable, pinned: await d.store.pins() });
+      const position = new Map(queue.map((q, i) => [q.id, i + 1]));
+      // A trend rotating out still holds its slot until it retires; its successor already has one.
+      const outgoing = (await d.store.activeRotation())?.identifier;
+      const live = trends.filter((t) => (t.status === "Active" || t.status === "Cooling") && t.identifier !== outgoing).length;
+      radarCache = {
+        at: now(),
+        body: {
+          slots: { live, max: d.cfg.MAX_LIVE_TRENDS },
+          candidates: rows.map((r) => ({
+            ...candidateJson(r, false),
+            queue: position.get(r.id) ?? null,
+            signal: signalOf(r),
+            readings: readingsOf(latest.get(r.identifier), nowSec),
+            ...sparkOf(history.get(r.identifier) ?? [], nowSec),
+            watchers: watchers.get(r.id) ?? 0,
+          })),
+        },
+      };
+    }
+    return c.json(radarCache.body);
+  });
+  app.get("/v1/candidates/watching", signedIn, async (c) => c.json({ ids: [...(await d.store.watching(c.get("user")))] }));
+  app.post("/v1/candidates/:id/watch", rateLimit(120, 3_600_000, ipLimit, now), signedIn, async (c) => {
+    const id = Number(c.req.param("id"));
+    if (!Number.isInteger(id) || id <= 0) return c.json({ error: "bad id" }, 400);
+    if (!(await d.store.watch(id, c.get("user")))) return c.json({ error: "only candidates waiting to list can be watched" }, 404);
+    radarCache = null;
+    return c.json({ watching: true });
+  });
+  app.delete("/v1/candidates/:id/watch", signedIn, async (c) => {
+    const id = Number(c.req.param("id"));
+    if (!Number.isInteger(id) || id <= 0) return c.json({ error: "bad id" }, 400);
+    await d.store.unwatch(id, c.get("user"));
+    radarCache = null;
+    return c.json({ watching: false });
+  });
+  // The trend being rotated out (its index goes stale on purpose): the keeper reads it so it does
+  // not raise a stale-index alert, and the app shows a notice on its page.
+  app.get("/v1/rotation", async (c) => {
+    const r = await d.store.activeRotation();
+    return c.json({ rotating: r ? [r.identifier] : [], since: r ? Math.floor(r.startedAt.getTime() / 1000) : null, replacement: r?.replacement ?? null });
   });
 
   // Link paste: a signed-in account proposes a trend and is its surfacer (the first surfacer of a
@@ -361,8 +427,15 @@ export function createApp(d: AppDeps): Hono {
     const approved = await d.store.candidates("approved", 200);
     const latest = await d.store.latest(approved.map((a) => a.identifier));
     const tradable = new Set((await d.autopilot.service.markets().catch(() => [])).map((m) => m.symbol.toUpperCase()));
-    const ranked = rankQueue(approved, latest, { nowSec: Math.floor(now() / 1000), confirmNetflowUsd: d.cfg.CRYPTO_CONFIRM_NETFLOW_USD, tradable });
-    return c.json({ candidates: ranked.map((a) => ({ identifier: a.identifier, keywords: a.keywords.slice(0, 5), surfacer: a.surfacer })) });
+    const pins = await d.store.pins();
+    const ranked = rankQueue(approved, latest, { nowSec: Math.floor(now() / 1000), confirmNetflowUsd: d.cfg.CRYPTO_CONFIRM_NETFLOW_USD, tradable, pinned: pins });
+    const rotation = await d.store.activeRotation();
+    return c.json({
+      // `pinned`: kept by an admin; the workflow tries it first and lists crypto without smart-money inflow.
+      candidates: ranked.map((a) => ({ identifier: a.identifier, keywords: a.keywords.slice(0, 5), surfacer: a.surfacer, ...(pins.has(a.identifier) ? { pinned: true } : {}) })),
+      // The workflow stops updating these (see rotation.ts) and counts their slots as free.
+      rotating: rotation ? [rotation.identifier] : [],
+    });
   });
   oracle.get("/measurements", async (c) => {
     const tracked = await d.collector.tracked();
@@ -478,6 +551,79 @@ export function createApp(d: AppDeps): Hono {
     d.log.info({ id, decision: b.decision, by: c.get("admin") }, "candidate decided");
     return c.json({ candidate: candidateJson(row, true) });
   });
+  // Rotation: the rules, the running rotation, recent ones, and each live trend with its pin and
+  // which of the rules it meets now (see rotation.ts).
+  const rotationJson = (r: Rotation) => ({ ...r, startedAt: r.startedAt.toISOString(), finishedAt: r.finishedAt?.toISOString() ?? null });
+  admin.get("/rotation", async (c) => {
+    const nowSec = Math.floor(now() / 1000);
+    const [trends, meta, pins, active, recent] = await Promise.all([d.chain.trends(), d.store.trendMeta(), d.store.pins(), d.store.activeRotation(), d.store.rotations(10)]);
+    const live = trends.filter((t) => t.status === "Active" || t.status === "Cooling");
+    const sorted = live.map((t) => t.index).sort((a, b) => a - b);
+    const m = Math.floor(sorted.length / 2);
+    const median = sorted.length === 0 ? null : sorted.length % 2 ? sorted[m]! : (sorted[m - 1]! + sorted[m]!) / 2;
+    // The fourth rule: fewer mentions than the strongest candidate ready to list (as the collector ranks them).
+    const approved = await d.store.candidates("approved", 500);
+    const latest = await d.store.latest([...new Set([...approved.map((x) => x.identifier), ...live.map((t) => baseOf(t.identifier))])]);
+    const ready = rankQueue(approved, latest, { nowSec, confirmNetflowUsd: d.cfg.CRYPTO_CONFIRM_NETFLOW_USD, tradable: new Set(), pinned: pins });
+    const strongest = ready.reduce<{ identifier: string; mentions: number } | null>((best, x) => {
+      const n = mentionsOf(latest.get(x.identifier), nowSec);
+      return !best || n > best.mentions ? { identifier: x.identifier, mentions: Math.round(n) } : best;
+    }, null);
+    const liveBases = new Set(live.map((t) => baseOf(t.identifier)));
+    return c.json({
+      strongest,
+      // Kept topics not live now (retired, waiting to list again first in line).
+      keptWaiting: [...pins].filter((b) => !liveBases.has(b)).sort(),
+      rules: { enabled: d.cfg.ROTATION === "on", maxLive: d.cfg.MAX_LIVE_TRENDS, minAgeSec: d.cfg.ROTATION_MIN_AGE_SEC, fadeRatio: d.cfg.ROTATION_FADE_RATIO, timeoutSec: d.cfg.ROTATION_TIMEOUT_SEC, listGraceSec: d.cfg.ROTATION_LIST_GRACE_SEC, cooldownSec: d.cfg.ROTATION_COOLDOWN_SEC },
+      median,
+      active: active ? rotationJson(active) : null,
+      recent: recent.map(rotationJson),
+      live: live
+        .map((t) => ({
+          identifier: t.identifier,
+          base: baseOf(t.identifier),
+          displayName: (meta.get(t.identifier) ?? meta.get(baseOf(t.identifier)))?.displayName ?? null,
+          status: t.status.toLowerCase(),
+          index: t.index,
+          peakIndex: t.peakIndex,
+          ageSec: nowSec - t.createdAt,
+          pinned: pins.has(baseOf(t.identifier)),
+          rotatingOut: active?.identifier === t.identifier,
+          mentions: Math.round(mentionsOf(latest.get(baseOf(t.identifier)), nowSec)),
+          meets: {
+            age: nowSec - t.createdAt >= d.cfg.ROTATION_MIN_AGE_SEC,
+            faded: t.peakIndex > 0 && t.index <= d.cfg.ROTATION_FADE_RATIO * t.peakIndex,
+            belowMedian: median !== null && t.index < median,
+            weaker: strongest !== null && mentionsOf(latest.get(baseOf(t.identifier)), nowSec) < strongest.mentions,
+          },
+        }))
+        .sort((a, b) => a.index - b.index),
+    });
+  });
+  admin.post("/pins", async (c) => {
+    const parsed = z.object({ identifier: z.string().min(3).max(64), pinned: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "bad request" }, 400);
+    const base = baseOf(parsed.data.identifier.toLowerCase());
+    // Only a live trend can be kept: a crypto topic lists on smart-money inflow first, and only a
+    // pin made after that lets it list again without it. Unpinning always works.
+    if (parsed.data.pinned) {
+      const live = (await d.chain.trends()).some((t) => (t.status === "Active" || t.status === "Cooling") && baseOf(t.identifier) === base);
+      if (!live) return c.json({ error: "only a live trend can be kept" }, 409);
+    }
+    await d.store.setPin(base, parsed.data.pinned, c.get("admin"));
+    // Keeping a trend that is rotating out calls its rotation off; the workflow resumes its updates.
+    const active = await d.store.activeRotation();
+    if (parsed.data.pinned && active?.base === base) await d.store.finishRotation(active.id, "cancelled", "kept by an admin");
+    d.log.info({ identifier: base, pinned: parsed.data.pinned, by: c.get("admin") }, "trend pin changed");
+    return c.json({ identifier: base, pinned: parsed.data.pinned });
+  });
+  admin.post("/rotation/cancel", async (c) => {
+    const active = await d.store.activeRotation();
+    if (!active) return c.json({ error: "no rotation is running" }, 404);
+    await d.store.finishRotation(active.id, "cancelled", "called off by an admin");
+    d.log.info({ identifier: active.identifier, by: c.get("admin") }, "rotation called off");
+    return c.json({ cancelled: active.identifier });
+  });
   // Runs take a minute or more, so they start in the background; /health shows the outcome.
   admin.post("/jobs/:name/run", (c) => {
     const name = c.req.param("name");
@@ -556,7 +702,11 @@ export function createApp(d: AppDeps): Hono {
   let statusCache: { at: number; body: Awaited<ReturnType<typeof status>> } | null = null;
   app.get("/v1/status", async (c) => {
     if (!statusCache || now() - statusCache.at > 10_000) {
-      statusCache = { at: now(), body: await status(d.chain, parseServices(d.cfg.STATUS_SERVICES), { oracleStaleSec: d.cfg.ORACLE_STALE_SEC }, Math.floor(now() / 1000)) };
+      const rotating = await d.store.activeRotation().catch(() => null);
+      statusCache = {
+        at: now(),
+        body: await status(d.chain, parseServices(d.cfg.STATUS_SERVICES), { oracleStaleSec: d.cfg.ORACLE_STALE_SEC, rotating: new Set(rotating ? [rotating.identifier] : []) }, Math.floor(now() / 1000)),
+      };
     }
     return c.json(statusCache.body, statusCache.body.ok ? 200 : 503);
   });

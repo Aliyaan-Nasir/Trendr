@@ -45,7 +45,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   now = T * 1000;
-  await sql`TRUNCATE posts, calls, callers, vault_items, push_subscriptions, cursors, index_points, autopilot_audit, moderation_log RESTART IDENTITY CASCADE`;
+  await sql`TRUNCATE posts, calls, callers, vault_items, push_subscriptions, cursors, index_points, autopilot_audit, moderation_log, candidates, trend_meta RESTART IDENTITY CASCADE`;
 });
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) => app.request(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
@@ -227,6 +227,36 @@ describe("notifications", () => {
     await sql`INSERT INTO autopilot_audit (owner, rule_id, event, detail) VALUES (${owner}, 7, 'order_filled', ${sql.json({ orderId: 1, action: "open", side: "long", price: 80_000 } as never)}), (${owner}, 7, 'waiting', '{}')`;
     expect(await dispatcher.tick()).toEqual({ notified: 1 });
     expect(sent).toEqual([{ endpoint: "https://fcm.googleapis.com/fcm/send/1", payload: { title: "Autopilot: opened long", body: "Filled at 80000", url: "/autopilot/7", tag: "order-1" } }]);
+    expect(await dispatcher.tick()).toEqual({ notified: 0 });
+  });
+
+  test("a watched candidate that lists notifies each watcher once, on the markets topic", async () => {
+    const sent: Array<{ endpoint: string; payload: unknown }> = [];
+    const push = new Push(sql, { publicKey: "p".repeat(87), privateKey: "k".repeat(43), subject: "mailto:ops@example.org" }, {
+      send: async (sub, payload) => {
+        sent.push({ endpoint: sub.endpoint, payload: JSON.parse(payload) });
+        return { statusCode: 201 };
+      },
+    });
+    await push.subscribe(account.address, { endpoint: "https://fcm.googleapis.com/fcm/send/m", p256dh: "x".repeat(87), auth: "y".repeat(22), topics: ["markets"] });
+    const [c] = await sql<{ id: string }[]>`
+      INSERT INTO candidates (identifier, display_name, asset_class, source, status) VALUES ('topic:pope-leo-surgery', 'Pope Leo Surgery', 6, 'bluesky_trend', 'approved') RETURNING id`;
+    const id = Number(c!.id);
+    await sql`INSERT INTO candidate_watches (candidate_id, account) VALUES (${id}, ${account.address.toLowerCase()}), (${id}, ${other.address.toLowerCase()})`;
+    const dispatcher = new Dispatcher(sql, push);
+    await dispatcher.tick();
+    expect(sent).toHaveLength(0); // still waiting for a slot
+    await sql`UPDATE candidates SET status = 'live' WHERE id = ${id}`;
+    await sql`INSERT INTO trend_meta (identifier, trend_id, display_name) VALUES ('topic:pope-leo-surgery.2', '0x01', 'Pope Leo Surgery')`;
+    expect(await dispatcher.tick()).toEqual({ notified: 1 });
+    expect(sent).toEqual([
+      {
+        endpoint: "https://fcm.googleapis.com/fcm/send/m",
+        payload: { title: "Pope Leo Surgery is live on Trendr", body: "Its market just opened. Trade it before the crowd.", url: "/t/topic:pope-leo-surgery.2", tag: `listed-${id}` },
+      },
+    ]);
+    // Both watches are done, the one without a device included; nothing repeats.
+    expect(await sql`SELECT 1 FROM candidate_watches WHERE notified_at IS NULL`).toHaveLength(0);
     expect(await dispatcher.tick()).toEqual({ notified: 0 });
   });
 

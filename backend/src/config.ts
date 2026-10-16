@@ -107,6 +107,17 @@ const schema = z.object({
   HISTORY_INTERVAL_SEC: z.coerce.number().int().positive().default(60),
   /** Smart-money inflow (USD, 24h) a crypto candidate needs before it is offered to the workflow; keep equal to the workflow's minConfirmNetflowUsd. */
   CRYPTO_CONFIRM_NETFLOW_USD: z.coerce.number().nonnegative().default(100_000),
+  /** Live slots: the workflow's `discovery.maxLiveTrends` (a test keeps them equal). */
+  MAX_LIVE_TRENDS: z.coerce.number().int().positive().default(20),
+  /** Rotation (rotation.ts): a full board swaps a faded trend for a stronger approved candidate. */
+  ROTATION: z.enum(["on", "off"]).default("on"),
+  ROTATION_MIN_AGE_SEC: z.coerce.number().int().positive().default(36 * 3600),
+  ROTATION_FADE_RATIO: z.coerce.number().gt(0).lt(1).default(0.6),
+  ROTATION_TIMEOUT_SEC: z.coerce.number().int().positive().default(6 * 3600),
+  ROTATION_LIST_GRACE_SEC: z.coerce.number().int().positive().default(20 * 60),
+  // The registry's staleRetireWindow (2 h on Testnet).
+  ROTATION_STALE_WINDOW_SEC: z.coerce.number().int().positive().default(2 * 3600),
+  ROTATION_COOLDOWN_SEC: z.coerce.number().int().nonnegative().default(3600),
   /** Web Push (VAPID). Generate with: bunx web-push generate-vapid-keys. Subject: a mailto: or https: contact. */
   VAPID_PUBLIC_KEY: optional(z.string().min(80)),
   VAPID_PRIVATE_KEY: optional(z.string().min(40)),

@@ -34,6 +34,8 @@ const schema = z.object({
   HEAD_LAG_ALERT_SEC: z.coerce.number().int().positive().default(30),
   /** Slack or Discord compatible webhook for alerts; alerts are always logged. */
   ALERT_WEBHOOK_URL: optional(z.string().url()),
+  /** The backend's `/v1/rotation`: the trend being rotated out, left out of the stale-index alert. */
+  ROTATION_URL: optional(z.string().url()),
   /** Deployment JSON for chains not in @trendr/contracts (a local Anvil chain). */
   DEPLOYMENT_JSON: optional(z.string()),
 });

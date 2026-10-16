@@ -6,6 +6,7 @@ import { loadConfig } from "./config";
 import { Executor } from "./executor";
 import { Keeper } from "./keeper";
 import { buildServer } from "./server";
+import { rotationReader } from "./rotation";
 
 const cfg = loadConfig(process.env);
 const log = pino({ level: cfg.LOG_LEVEL, base: { service: "keeper", chainId: cfg.CHAIN_ID } });
@@ -26,6 +27,7 @@ const keeper = new Keeper(client, chain, cfg.deployment, executor, alerts, log, 
   headLagAlertSec: cfg.HEAD_LAG_ALERT_SEC,
   minBalanceWei: parseEther("1"),
   wsUrls: cfg.wsUrls,
+  rotating: cfg.ROTATION_URL ? rotationReader(cfg.ROTATION_URL) : undefined,
 });
 await keeper.start();
 

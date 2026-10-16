@@ -48,6 +48,22 @@ describe("oracle queue", () => {
     expect(rankQueue(approved, latest, opts).map((c) => c.identifier)).toEqual(["crypto:btc", "crypto:eth", "topic:loud", "topic:wiki"]);
   });
 
+  test("a kept (pinned) topic goes first, and a pinned crypto one needs no smart-money inflow", () => {
+    const latest = new Map<string, Partial<Record<SourceName, Reading>>>([
+      ["crypto:btc", { elfa: at(10, 600), nansen: at(150_000, 600) }],
+      // Smart money is selling both.
+      ["crypto:eth", { elfa: at(3_000, 600), nansen: at(-281_000, 600) }],
+      ["crypto:sol", { elfa: at(9_000, 600), nansen: at(-281_000, 600) }],
+      ["topic:loud", { elfa: at(900, 600) }],
+      // A pin never makes an unmeasured topic listable.
+      ["topic:kept-silent", { elfa: at(0, 600) }],
+    ]);
+    const approved = [...latest.keys()].map((id) => candidate(id, id.startsWith("crypto:") ? 0 : 6, id.startsWith("crypto:") ? id.slice(7).toUpperCase() : null));
+    const pinned = new Set(["crypto:eth", "topic:kept-silent"]);
+    expect(rankQueue(approved, latest, { ...opts, pinned }).map((c) => c.identifier)).toEqual(["crypto:eth", "crypto:btc", "topic:loud"]);
+    expect(rankQueue(approved, latest, opts).map((c) => c.identifier)).toEqual(["crypto:btc", "topic:loud"]);
+  });
+
   test("Bluesky measures a candidate, and ranks it while Elfa is silent; Hacker News alone does not", () => {
     const latest = new Map<string, Partial<Record<SourceName, Reading>>>([
       ["topic:bsky-small", { bluesky: at(20, 600) }],

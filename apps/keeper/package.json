@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "start": "bun src/index.ts",
-    "test": "bun test test/plan.test.ts test/executor.test.ts test/config.test.ts test/server.test.ts",
+    "test": "bun test test/plan.test.ts test/executor.test.ts test/config.test.ts test/server.test.ts test/rotation.test.ts",
     "test:e2e": "KEEPER_E2E=1 bun test test/e2e.anvil.test.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -22,7 +22,7 @@ afterAll(async () => {
   await sql.end();
 });
 beforeEach(async () => {
-  await sql`TRUNCATE candidates, trend_meta, measurements, api_usage RESTART IDENTITY CASCADE`;
+  await sql`TRUNCATE candidates, trend_meta, measurements, api_usage, rotations, trend_pins RESTART IDENTITY CASCADE`;
 });
 
 const NOW = Date.parse("2026-10-10T12:00:00Z");
@@ -310,6 +310,84 @@ describe("retired trends", () => {
     expect(await new Collector(store, chain, sources().deps, cfg, quietLog).syncRetirements()).toEqual({ requeued: ["topic:again"], retired: [] });
     expect((await store.candidate(a.id))?.status).toBe("approved");
     expect((await store.candidate(b.id))?.status).toBe("live");
+  });
+
+  test("rotation: a full board retires the faded trend for good and lists a stronger candidate", async () => {
+    const rules = { maxLive: 2, minAgeSec: 36 * 3600, fadeRatio: 0.6, timeoutSec: 6 * 3600, listGraceSec: 1200, staleWindowSec: STALE_RETIRE_SEC, cooldownSec: 3600, confirmNetflowUsd: 100_000 };
+    const rotating = { ...cfg, rotation: rules };
+    const faded = await live("topic:faded");
+    await live("topic:strong");
+    const { candidate: next } = await store.insertCandidate(candidate("topic:next"));
+    await store.addMeasurement("topic:next", "elfa", "mentions", 4_000, 86_400, new Date(NOW - 600_000));
+    await store.addMeasurement("topic:faded", "elfa", "mentions", 100, 86_400, new Date(NOW - 600_000));
+    await store.addMeasurement("topic:strong", "elfa", "mentions", 9_000, 86_400, new Date(NOW - 600_000));
+    const board = [trend("topic:faded.2", { index: 12, peakIndex: 50, createdAt: T - 48 * 3600 }), trend("topic:strong", { index: 70, peakIndex: 80, createdAt: T - 72 * 3600 })];
+
+    // Pinned, it stays; unpinned, it rotates out for the stronger candidate.
+    await store.setPin("topic:faded", true, "0x00000000000000000000000000000000000000a1");
+    expect(await new Collector(store, fakeChain(board), sources().deps, rotating, quietLog).rotate(T)).toBeNull();
+    await store.setPin("topic:faded", false, "0x00000000000000000000000000000000000000a1");
+    const c = new Collector(store, fakeChain(board), sources().deps, rotating, quietLog);
+    expect(await c.rotate(T)).toBe("rotating out topic:faded.2 for topic:next");
+    expect((await store.activeRotation())?.identifier).toBe("topic:faded.2");
+    // One at a time: the next step only waits on it.
+    expect(await c.rotate(T + 60)).toBe("rotating out topic:faded.2");
+
+    // The workflow stopped updating it; the keeper retired it as stale. Its topic retires, it does
+    // not go back in the queue, and the rotation is done.
+    const gone = retired("topic:faded.2", T, T + STALE_RETIRE_SEC + 1, T - 48 * 3600);
+    const after = new Collector(store, fakeChain([gone, board[1]!]), sources().deps, rotating, quietLog);
+    const report = await after.tick(NOW + (STALE_RETIRE_SEC + 60) * 1000);
+    expect(report.retired).toEqual(["topic:faded"]);
+    expect(report.requeued).toEqual([]);
+    expect(report.rotation).toBe("rotated out topic:faded.2");
+    expect((await store.candidate(faded.id))?.status).toBe("retired");
+    expect(await store.activeRotation()).toBeNull();
+    expect((await store.rotations())[0]?.status).toBe("done");
+    expect((await store.candidate(next.id))?.status).toBe("approved");
+  });
+
+  test("rotation: a rotation that never retires is called off, and one rotation runs at a time", async () => {
+    const r = await store.startRotation({ identifier: "topic:a.2", base: "topic:a", trendId: "0x01", replacement: null, reason: "test" });
+    expect(r).not.toBeNull();
+    expect(await store.startRotation({ identifier: "topic:b", base: "topic:b", trendId: "0x02", replacement: null, reason: "test" })).toBeNull();
+    const c = new Collector(store, fakeChain([trend("topic:a.2")]), sources().deps, { ...cfg, rotation: { maxLive: 20, minAgeSec: 1, fadeRatio: 0.6, timeoutSec: 3600, listGraceSec: 999_999, staleWindowSec: STALE_RETIRE_SEC, cooldownSec: 3600, confirmNetflowUsd: 0 } }, quietLog);
+    expect(await c.rotate(Math.floor(r!.startedAt.getTime() / 1000) + 3601)).toBe("rotation of topic:a.2 timed out");
+    expect((await store.rotations())[0]).toMatchObject({ status: "cancelled" });
+    expect((await store.rotations())[0]?.reason).toContain("timed out");
+  });
+
+  test("rotation: the board never shrinks, so a trend whose slot no new trend took stays", async () => {
+    const rules = { maxLive: 2, minAgeSec: 36 * 3600, fadeRatio: 0.6, timeoutSec: 6 * 3600, listGraceSec: 1200, staleWindowSec: STALE_RETIRE_SEC, cooldownSec: 3600, confirmNetflowUsd: 0 };
+    const rotating = { ...cfg, rotation: rules };
+    await live("topic:faded");
+    await live("topic:strong");
+    await store.insertCandidate(candidate("topic:next"));
+    await store.addMeasurement("topic:next", "elfa", "mentions", 4_000, 86_400, new Date(Date.now() - 600_000));
+    await store.addMeasurement("topic:faded", "elfa", "mentions", 100, 86_400, new Date(Date.now() - 600_000));
+    await store.addMeasurement("topic:strong", "elfa", "mentions", 9_000, 86_400, new Date(Date.now() - 600_000));
+    const r = await store.startRotation({ identifier: "topic:faded.2", base: "topic:faded", trendId: "0x01", replacement: "topic:next", reason: "test" });
+    const s0 = Math.floor(r!.startedAt.getTime() / 1000);
+    const at = (updatedAt: number) => [trend("topic:faded.2", { index: 12, peakIndex: 50, createdAt: s0 - 48 * 3600, updatedAt }), trend("topic:strong", { index: 70, peakIndex: 80, createdAt: s0 - 72 * 3600 })];
+    const step = (board: ChainTrend[], nowSec: number) => new Collector(store, fakeChain(board), sources().deps, rotating, quietLog).rotate(nowSec);
+
+    // A new trend listed in its place: the rotation waits for the registry to retire it.
+    expect(await step([...at(s0 - 60), trend("topic:next")], s0 + 1500)).toBe("rotating out topic:faded.2");
+    // Within the grace the oracle may still list one.
+    expect(await step(at(s0 - 60), s0 + 600)).toBe("rotating out topic:faded.2");
+    // Past it with nothing listed, it is called off while the oracle can still update the trend.
+    expect(await step(at(s0 - 60), s0 + 1500)).toBe("rotation of topic:faded.2 called off: no new trend took its slot");
+    expect((await store.rotations())[0]).toMatchObject({ status: "cancelled" });
+
+    // The next rotation waits out the cooldown, though the same trend still qualifies.
+    expect(await step(at(s0 + 1500), s0 + 1600)).toBeNull();
+    expect(await step(at(s0 + 1500), s0 + 1500 + 3700)).toBe("rotating out topic:faded.2 for topic:next");
+
+    // Too close to the stale window to bring it back in time: it is left to retire, and the
+    // workflow lists the queue as soon as a candidate qualifies.
+    const r2 = (await store.activeRotation())!;
+    const s1 = Math.floor(r2.startedAt.getTime() / 1000);
+    expect(await step(at(s1 + 3700 - STALE_RETIRE_SEC + 600), s1 + 3700)).toBe("rotating out topic:faded.2");
   });
 
   test("the new source names survive the migrations running again, and unknown ones are refused", async () => {

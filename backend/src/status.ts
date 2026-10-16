@@ -40,7 +40,12 @@ export function parseServices(value: string | undefined): ServiceProbe[] {
     .filter((s) => s.name && /^https?:\/\//.test(s.url));
 }
 
-export async function status(chain: ChainReader, services: readonly ServiceProbe[], opts: { oracleStaleSec: number; fetchImpl?: typeof fetch }, nowSec = Math.floor(Date.now() / 1000)) {
+export async function status(
+  chain: ChainReader,
+  services: readonly ServiceProbe[],
+  opts: { oracleStaleSec: number; fetchImpl?: typeof fetch; /** Trends rotating out: stale on purpose. */ rotating?: ReadonlySet<string> },
+  nowSec = Math.floor(Date.now() / 1000),
+) {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const probes = await Promise.all(
     services.map(async (s) => {
@@ -59,7 +64,7 @@ export async function status(chain: ChainReader, services: readonly ServiceProbe
     const [trends, lastRunId, block] = await Promise.all([chain.trends(), chain.lastRunId(), chain.client.getBlock()]);
     const live = trends.filter((t) => t.status === "Active" || t.status === "Cooling");
     const lastRunAgeSec = Number(lastRunId) > 0 ? nowSec - Number(lastRunId) : null;
-    const staleTrends = live.filter((t) => nowSec - t.updatedAt > opts.oracleStaleSec).length;
+    const staleTrends = live.filter((t) => !opts.rotating?.has(t.identifier) && nowSec - t.updatedAt > opts.oracleStaleSec).length;
     oracle = { ok: lastRunAgeSec !== null && lastRunAgeSec < opts.oracleStaleSec && staleTrends === 0, lastRunAgeSec, staleTrends };
     const ageSec = nowSec - Number(block.timestamp);
     head = { ok: ageSec < 30, ageSec, number: block.number.toString() };

@@ -20,6 +20,8 @@ export interface KeeperOptions extends PlanConfig {
   minBalanceWei: bigint;
   /** WebSocket endpoints; without any, heads are polled over HTTP. */
   wsUrls?: readonly string[];
+  /** Trends the backend is rotating out: their index goes stale on purpose, so they raise no alert. */
+  rotating?: () => Promise<ReadonlySet<string>>;
 }
 
 export interface KeeperStatus {
@@ -125,7 +127,8 @@ export class Keeper {
     try {
       this.params ??= await readParams(this.client, this.deployment);
       const snapshot = await readSnapshot(this.client, this.deployment, this.params);
-      const live = snapshot.trends.filter((t) => t.status === Status.Active || t.status === Status.Cooling);
+      const rotating = this.opts.rotating ? await this.opts.rotating().catch(() => new Set<string>()) : new Set<string>();
+      const live = snapshot.trends.filter((t) => (t.status === Status.Active || t.status === Status.Cooling) && !rotating.has(t.identifier));
       const ages = live.map((t) => Number(snapshot.now - t.updatedAt));
       const stale = ages.filter((a) => a > Number(snapshot.params.stalenessLimit)).length;
       this.status.oracle = { live: live.length, stale, oldestUpdateSec: ages.length ? Math.max(...ages) : 0 };
